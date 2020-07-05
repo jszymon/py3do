@@ -16,7 +16,7 @@ if __name__ == "__main__":
         license='GNU General Public License V.3 or later',
         url='https://github.com/jszymon/py3do',
         long_description=open('README.md').read(),
-        python_requires=">=3.5",
+        python_requires=">=3.7",
         install_requires=['numpy>=1.18',
                           'matplotlib>=3.0.0',
                           'scipy>=1.4.0',
