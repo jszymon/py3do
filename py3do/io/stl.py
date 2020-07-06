@@ -31,7 +31,7 @@ def _parse_vector(f, match, raise_on_nonmatch=True):
 
 def read_ascii_stl(fname):
     if hasattr(fname, 'read'):
-        f_ctx = nullcontext(filename)
+        f_ctx = nullcontext(fname)
     else:
         f_ctx = open(fname, 'r')
     with f_ctx as fl:
