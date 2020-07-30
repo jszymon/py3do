@@ -6,17 +6,20 @@ def _numbered_line_reader(f):
 
 def _match_line(f, match):
     for li, l in f:
-        if li != "": break
+        if l != "": break
     else:
         raise RuntimeError("Unexpected end of file, expected " + str(match))
     if l != match:
-        raise RuntimeError("Expected " + str(match) + " on line " + str(li))
+        raise RuntimeError("Expected '" + str(match) + "' on line " + str(li))
 def _parse_vector(f, match, raise_on_nonmatch=True):
     for li, l in f:
-        if li != "": break
+        if l != "": break
     else:
         if raise_on_nonmatch:
             raise RuntimeError("Unexpected end of file, expected " + str(match))
+        if "li" not in locals():
+            li = None
+            l = ""
         return None, li, l
     if not l.startswith(match):
         if raise_on_nonmatch:
@@ -43,12 +46,17 @@ def read_ascii_stl(fname):
         print("read stl", name)
         while True:
             normal, li, l = _parse_vector(f, "facet normal",
-                                              raise_on_nonmatch=False)
-            if normal is None and l.startswith("endsolid"):
-                if name != l[9:]:
-                    print("Warning: different names in 'solid'"
-                                           " and 'endsolid'")
-                break
+                                          raise_on_nonmatch=False)
+            print(normal, li, l)
+            if normal is None:
+                if li is None:  # end of file
+                    raise RuntimeError("Missing 'endsolid'")
+                if l.startswith("endsolid"):
+                    if name != l[9:]:
+                        print("Warning: different names in 'solid'"
+                                  " and 'endsolid'")
+                    break
+                raise RuntimeError("Expected 'facet'")
             _match_line(f, "outer loop")
             v1, li, l = _parse_vector(f, "vertex")
             v2, li, l = _parse_vector(f, "vertex")
