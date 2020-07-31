@@ -1,4 +1,6 @@
 from contextlib import nullcontext
+from itertools import count
+from collections import defaultdict
 
 def _numbered_line_reader(f):
     for li, l in enumerate(f):
@@ -29,10 +31,12 @@ def _parse_vector(f, match, raise_on_nonmatch=True):
     if len(toks) != 3:
         raise RuntimeError("A vector must have exactly 3 coordinates"
                                " (line " + str(li) + ")")
-    vec = [float(x) for x in toks]
+    vec = tuple(float(x) for x in toks)
     return vec, li, l
 
 def read_ascii_stl(fname):
+    vertex_map = defaultdict(count().__next__)
+    faces = []
     if hasattr(fname, 'read'):
         f_ctx = nullcontext(fname)
     else:
@@ -68,9 +72,14 @@ def read_ascii_stl(fname):
             print("  v1", v1)
             print("  v2", v2)
             print("  v3", v3)
+            i1 = vertex_map[v1]
+            i2 = vertex_map[v2]
+            i3 = vertex_map[v3]
+            faces.append((i1, i2, i3))
         else:
             raise RuntimeError("Missing 'endsolid'")
         for li, l in f:
             if l != "":
                 raise RuntimeError("Content after 'endsolid'")
-
+        print(vertex_map)
+        print(faces)
