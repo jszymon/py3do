@@ -37,6 +37,7 @@ def _parse_vector(f, match, raise_on_nonmatch=True):
 def read_ascii_stl(fname):
     vertex_map = defaultdict(count().__next__)
     faces = []
+    normals = []
     if hasattr(fname, 'read'):
         f_ctx = nullcontext(fname)
     else:
@@ -76,6 +77,7 @@ def read_ascii_stl(fname):
             i2 = vertex_map[v2]
             i3 = vertex_map[v3]
             faces.append((i1, i2, i3))
+            normals.append(normal)
         else:
             raise RuntimeError("Missing 'endsolid'")
         for li, l in f:
@@ -83,3 +85,4 @@ def read_ascii_stl(fname):
                 raise RuntimeError("Content after 'endsolid'")
         print(vertex_map)
         print(faces)
+        print(normals)
