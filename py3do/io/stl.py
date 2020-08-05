@@ -93,7 +93,7 @@ def read_ascii_stl(fname):
             if l != "":
                 raise RuntimeError("Content after 'endsolid'")
     vertices = _vertex_list_from_map(vertex_map)
-    print(vertices)
+    #print(vertices)
     #print(faces)
     #print(normals)
     m = Mesh(vertices, faces, normals)
