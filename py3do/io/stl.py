@@ -1,6 +1,7 @@
 from contextlib import nullcontext
 from itertools import count
 from collections import defaultdict
+from struct import unpack, Struct
 
 def _numbered_line_reader(f):
     for li, l in enumerate(f):
@@ -83,6 +84,53 @@ def read_ascii_stl(fname):
         for li, l in f:
             if l != "":
                 raise RuntimeError("Content after 'endsolid'")
-        print(vertex_map)
-        print(faces)
-        print(normals)
+    print(vertex_map)
+    print(faces)
+    print(normals)
+
+def _read_n_bytes(f, n):
+    b = f.read(n)
+    if len(b) != n:
+        raise RuntimeError("Unexpected end of file")
+    return b
+def read_binary_stl(fname):
+    vertex_map = defaultdict(count().__next__)
+    faces = []
+    normals = []
+    facet_str = Struct("<" + "f" * 12 + "H")
+    if hasattr(fname, 'read'):
+        f_ctx = nullcontext(fname)
+    else:
+        f_ctx = open(fname, 'rb')
+    with f_ctx as f:
+        header = _read_n_bytes(f, 80)
+        n_factes_b = _read_n_bytes(f, 4)
+        n_factes = unpack("<L", n_factes_b)[0]
+        print("header", header)
+        print(n_factes, "facets")
+        for i in range(n_factes):
+            facet = _read_n_bytes(f, facet_str.size)
+            normal_x, normal_y, normal_z, \
+            v1x, v1y, v1z, \
+            v2x, v2y, v2z, \
+            v3x, v3y, v3z, \
+            attr = facet_str.unpack(facet)
+            normal = (normal_x, normal_y, normal_z)
+            v1 = (v1x, v1y, v1z)
+            v2 = (v2x, v2y, v2z)
+            v3 = (v3x, v3y, v3z)
+            #print("facet")
+            #print("  normal", normal)
+            #print("  v1", v1)
+            #print("  v2", v2)
+            #print("  v3", v3)
+            i1 = vertex_map[v1]
+            i2 = vertex_map[v2]
+            i3 = vertex_map[v3]
+            faces.append((i1, i2, i3))
+            normals.append(normal)
+        if len(f.read(1)) != 0:
+            raise RuntimeError("Expected end of file")
+    print(vertex_map)
+    print(faces)
+    print(normals)
