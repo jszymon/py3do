@@ -3,6 +3,8 @@ from itertools import count
 from collections import defaultdict
 from struct import unpack, Struct
 
+from .. import Mesh
+
 def _numbered_line_reader(f):
     for li, l in enumerate(f):
         yield li+1, l.strip()
@@ -34,6 +36,12 @@ def _parse_vector(f, match, raise_on_nonmatch=True):
                                " (line " + str(li) + ")")
     vec = tuple(float(x) for x in toks)
     return vec, li, l
+def _vertex_list_from_map(vertex_map):
+    """Extract ordered list of vertices from vertex map."""
+    items = list(vertex_map.items())
+    items.sort(key = lambda x: x[1])
+    vertices = [i[0] for i in items]
+    return vertices
 
 def read_ascii_stl(fname):
     vertex_map = defaultdict(count().__next__)
@@ -49,11 +57,11 @@ def read_ascii_stl(fname):
         if header[0:6].lower() != "solid ":
             raise RuntimeError("Wrong ASCII STL header")
         name = header[6:].strip()
-        print("read stl", name)
+        #print("read stl", name)
         while True:
             normal, li, l = _parse_vector(f, "facet normal",
                                           raise_on_nonmatch=False)
-            print(normal, li, l)
+            #print(normal, li, l)
             if normal is None:
                 if li is None:  # end of file
                     raise RuntimeError("Missing 'endsolid'")
@@ -69,11 +77,11 @@ def read_ascii_stl(fname):
             v3, li, l = _parse_vector(f, "vertex")
             _match_line(f, "endloop")
             _match_line(f, "endfacet")
-            print("facet")
-            print("  normal", normal)
-            print("  v1", v1)
-            print("  v2", v2)
-            print("  v3", v3)
+            #print("facet")
+            #print("  normal", normal)
+            #print("  v1", v1)
+            #print("  v2", v2)
+            #print("  v3", v3)
             i1 = vertex_map[v1]
             i2 = vertex_map[v2]
             i3 = vertex_map[v3]
@@ -84,9 +92,12 @@ def read_ascii_stl(fname):
         for li, l in f:
             if l != "":
                 raise RuntimeError("Content after 'endsolid'")
-    print(vertex_map)
-    print(faces)
-    print(normals)
+    vertices = _vertex_list_from_map(vertex_map)
+    print(vertices)
+    #print(faces)
+    #print(normals)
+    m = Mesh(vertices, faces, normals)
+    return m
 
 def _read_n_bytes(f, n):
     b = f.read(n)
@@ -131,6 +142,9 @@ def read_binary_stl(fname):
             normals.append(normal)
         if len(f.read(1)) != 0:
             raise RuntimeError("Expected end of file")
-    print(vertex_map)
-    print(faces)
-    print(normals)
+    #print(vertex_map)
+    #print(faces)
+    #print(normals)
+    vertices = _vertex_list_from_map(vertex_map)
+    m = Mesh(vertices, faces, normals)
+    return m
