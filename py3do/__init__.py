@@ -2,3 +2,5 @@
 
 from .mesh import Mesh
 from .geom import normals_Newell
+from .geom import normals_cross
+from .topo import repeated_face_vertices
