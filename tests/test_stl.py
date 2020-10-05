@@ -163,5 +163,8 @@ endsolid triangle""")
 def test_cube_write():
     f = io.StringIO(cube_stl)
     cube = read_ascii_stl(f)
-    import sys
-    write_ascii_stl(cube, sys.stdout)
+    fo = io.StringIO("")
+    write_ascii_stl(cube, fo)
+    fo.seek(0)
+    cube2 = read_ascii_stl(fo)
+    # TODO: compare ...
