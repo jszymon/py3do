@@ -3,6 +3,8 @@ import io
 import pytest
 
 from py3do.io import read_ascii_stl
+from py3do.io import read_binary_stl
+from py3do.io import write_ascii_stl
 
 
 def test_empty():
@@ -157,3 +159,9 @@ endfacet
 endsolid triangle""")
     with pytest.raises(RuntimeError, match="Expected 'endloop'"):
         read_ascii_stl(f)
+
+def test_cube_write():
+    f = io.StringIO(cube_stl)
+    cube = read_ascii_stl(f)
+    import sys
+    write_ascii_stl(cube, sys.stdout)

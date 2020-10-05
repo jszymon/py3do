@@ -3,6 +3,8 @@ from itertools import count
 from collections import defaultdict
 from struct import unpack, Struct
 
+import numpy as np
+
 from .. import Mesh
 
 def _numbered_line_reader(f):
@@ -57,11 +59,9 @@ def read_ascii_stl(fname):
         if header[0:6].lower() != "solid ":
             raise RuntimeError("Wrong ASCII STL header")
         name = header[6:].strip()
-        #print("read stl", name)
         while True:
             normal, li, l = _parse_vector(f, "facet normal",
                                           raise_on_nonmatch=False)
-            #print(normal, li, l)
             if normal is None:
                 if li is None:  # end of file
                     raise RuntimeError("Missing 'endsolid'")
@@ -77,11 +77,6 @@ def read_ascii_stl(fname):
             v3, li, l = _parse_vector(f, "vertex")
             _match_line(f, "endloop")
             _match_line(f, "endfacet")
-            #print("facet")
-            #print("  normal", normal)
-            #print("  v1", v1)
-            #print("  v2", v2)
-            #print("  v3", v3)
             i1 = vertex_map[v1]
             i2 = vertex_map[v2]
             i3 = vertex_map[v3]
@@ -93,9 +88,6 @@ def read_ascii_stl(fname):
             if l != "":
                 raise RuntimeError("Content after 'endsolid'")
     vertices = _vertex_list_from_map(vertex_map)
-    #print(vertices)
-    #print(faces)
-    #print(normals)
     m = Mesh(vertices, faces, normals)
     return m
 
@@ -117,8 +109,6 @@ def read_binary_stl(fname):
         header = _read_n_bytes(f, 80)
         n_factes_b = _read_n_bytes(f, 4)
         n_factes = unpack("<L", n_factes_b)[0]
-        print("header", header)
-        print(n_factes, "facets")
         for i in range(n_factes):
             facet = _read_n_bytes(f, facet_str.size)
             normal_x, normal_y, normal_z, \
@@ -130,11 +120,6 @@ def read_binary_stl(fname):
             v1 = (v1x, v1y, v1z)
             v2 = (v2x, v2y, v2z)
             v3 = (v3x, v3y, v3z)
-            #print("facet")
-            #print("  normal", normal)
-            #print("  v1", v1)
-            #print("  v2", v2)
-            #print("  v3", v3)
             i1 = vertex_map[v1]
             i2 = vertex_map[v2]
             i3 = vertex_map[v3]
@@ -142,9 +127,35 @@ def read_binary_stl(fname):
             normals.append(normal)
         if len(f.read(1)) != 0:
             raise RuntimeError("Expected end of file")
-    #print(vertex_map)
-    #print(faces)
-    #print(normals)
     vertices = _vertex_list_from_map(vertex_map)
     m = Mesh(vertices, faces, normals)
     return m
+
+def _vector_to_str(v):
+    return " ".join(str(x) for x in v)
+def write_ascii_stl(m, fname, model_name="exported from py3do", indent=2):
+    if m.normals is None:
+        raise RuntimeError("Face normal not available in model")
+    if hasattr(fname, 'read'):
+        f_ctx = nullcontext(fname)
+    else:
+        f_ctx = open(fname, 'w')
+    fvs = m.vertices[m.faces]  # vertices of faces
+    ol_str = "\nouter loop\n" + " "*indent + "vertex "
+    v_str = "\n" + " "*indent + "vertex "
+    with f_ctx as f:
+        f.write("solid ")
+        f.write("model_name\n")
+        for i, fv in enumerate(fvs.tolist()):
+            f.write("facet normal ")
+            f.write(_vector_to_str(m.normals[i]))
+            f.write(ol_str)
+            f.write(_vector_to_str(fv[0]))
+            f.write(v_str)
+            f.write(_vector_to_str(fv[1]))
+            f.write(v_str)
+            f.write(_vector_to_str(fv[2]))
+            f.write("\nendloop\n")
+            f.write("endfacet\n")
+        f.write("endsolid ")
+        f.write("model_name")
