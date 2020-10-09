@@ -2,9 +2,8 @@ import io
 
 import pytest
 
-from py3do.io import read_ascii_stl
-from py3do.io import read_binary_stl
-from py3do.io import write_ascii_stl
+from py3do.io import read_ascii_stl, write_ascii_stl
+from py3do.io import read_binary_stl, write_binary_stl
 from py3do import is_isomorphic
 
 
@@ -169,4 +168,14 @@ def test_cube_write():
     write_ascii_stl(cube, fo)
     fo.seek(0)
     cube2 = read_ascii_stl(fo)
+    assert is_isomorphic(cube, cube2)
+
+def test_cube_write_binary():
+    f = io.StringIO(cube_stl)
+    cube = read_ascii_stl(f)
+    cube.vertices /= 3  # rely on float reading being repeatable
+    fo = io.BytesIO(b"")
+    write_binary_stl(cube, fo)
+    fo.seek(0)
+    cube2 = read_binary_stl(fo)
     assert is_isomorphic(cube, cube2)

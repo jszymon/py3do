@@ -1,7 +1,7 @@
 from contextlib import nullcontext
 from itertools import count
 from collections import defaultdict
-from struct import unpack, Struct
+from struct import unpack, pack, Struct
 
 import numpy as np
 
@@ -91,52 +91,12 @@ def read_ascii_stl(fname):
     m = Mesh(vertices, faces, normals)
     return m
 
-def _read_n_bytes(f, n):
-    b = f.read(n)
-    if len(b) != n:
-        raise RuntimeError("Unexpected end of file")
-    return b
-def read_binary_stl(fname):
-    vertex_map = defaultdict(count().__next__)
-    faces = []
-    normals = []
-    facet_str = Struct("<" + "f" * 12 + "H")
-    if hasattr(fname, 'read'):
-        f_ctx = nullcontext(fname)
-    else:
-        f_ctx = open(fname, 'rb')
-    with f_ctx as f:
-        header = _read_n_bytes(f, 80)
-        n_factes_b = _read_n_bytes(f, 4)
-        n_factes = unpack("<L", n_factes_b)[0]
-        for i in range(n_factes):
-            facet = _read_n_bytes(f, facet_str.size)
-            normal_x, normal_y, normal_z, \
-            v1x, v1y, v1z, \
-            v2x, v2y, v2z, \
-            v3x, v3y, v3z, \
-            attr = facet_str.unpack(facet)
-            normal = (normal_x, normal_y, normal_z)
-            v1 = (v1x, v1y, v1z)
-            v2 = (v2x, v2y, v2z)
-            v3 = (v3x, v3y, v3z)
-            i1 = vertex_map[v1]
-            i2 = vertex_map[v2]
-            i3 = vertex_map[v3]
-            faces.append((i1, i2, i3))
-            normals.append(normal)
-        if len(f.read(1)) != 0:
-            raise RuntimeError("Expected end of file")
-    vertices = _vertex_list_from_map(vertex_map)
-    m = Mesh(vertices, faces, normals)
-    return m
-
 def _vector_to_str(v):
     return " ".join(str(x) for x in v)
 def write_ascii_stl(m, fname, model_name="exported from py3do", indent=2):
     if m.normals is None:
         raise RuntimeError("Face normal not available in model")
-    if hasattr(fname, 'read'):
+    if hasattr(fname, 'write'):
         f_ctx = nullcontext(fname)
     else:
         f_ctx = open(fname, 'w')
@@ -159,3 +119,69 @@ def write_ascii_stl(m, fname, model_name="exported from py3do", indent=2):
             f.write("endfacet\n")
         f.write("endsolid ")
         f.write("model_name")
+
+def _read_n_bytes(f, n):
+    b = f.read(n)
+    if len(b) != n:
+        raise RuntimeError("Unexpected end of file")
+    return b
+def read_binary_stl(fname):
+    vertex_map = defaultdict(count().__next__)
+    faces = []
+    normals = []
+    facet_str = Struct("<" + "f" * 12 + "H")
+    if hasattr(fname, 'read'):
+        f_ctx = nullcontext(fname)
+    else:
+        f_ctx = open(fname, 'rb')
+    with f_ctx as f:
+        header = _read_n_bytes(f, 80)
+        n_faces_b = _read_n_bytes(f, 4)
+        n_faces = unpack("<L", n_faces_b)[0]
+        for i in range(n_faces):
+            face = _read_n_bytes(f, facet_str.size)
+            normal_x, normal_y, normal_z, \
+            v1x, v1y, v1z, \
+            v2x, v2y, v2z, \
+            v3x, v3y, v3z, \
+            attr = facet_str.unpack(face)
+            normal = (normal_x, normal_y, normal_z)
+            v1 = (v1x, v1y, v1z)
+            v2 = (v2x, v2y, v2z)
+            v3 = (v3x, v3y, v3z)
+            i1 = vertex_map[v1]
+            i2 = vertex_map[v2]
+            i3 = vertex_map[v3]
+            faces.append((i1, i2, i3))
+            normals.append(normal)
+        if len(f.read(1)) != 0:
+            raise RuntimeError("Expected end of file")
+    vertices = _vertex_list_from_map(vertex_map)
+    m = Mesh(vertices, faces, normals)
+    return m
+
+def write_binary_stl(m, fname, header=b"exported from py3do"):
+    if m.normals is None:
+        raise RuntimeError("Face normal not available in model")
+    if hasattr(fname, 'write'):
+        f_ctx = nullcontext(fname)
+    else:
+        f_ctx = open(fname, 'wb')
+    fvs = m.vertices[m.faces]  # vertices of faces
+    if header.startswith(b"solid"):
+        raise RuntimeError("Binary STL header cannot start with 'solid'")
+    if len(header) > 80:
+        raise RuntimeError("Binary STL header too long")
+    header = (header + b" " * 80)[:80]
+    assert len(header) == 80
+    n_faces = m.faces.shape[0]
+    n_faces_b = pack("<L", n_faces)
+    attr_b = pack("<H", 0)
+    facet_str = Struct("<" + "f" * 12)
+    with f_ctx as f:
+        f.write(header)
+        f.write(n_faces_b)
+        for i, fv in enumerate(fvs.tolist()):
+            face_b = facet_str.pack(*m.normals[i], *fv[0], *fv[1], *fv[2])
+            f.write(face_b)
+            f.write(attr_b)
