@@ -163,7 +163,7 @@ endsolid triangle""")
 def test_cube_write():
     f = io.StringIO(cube_stl)
     cube = read_ascii_stl(f)
-    cube.vertices /= 3  # rely on float reading being repeatable
+    cube.vertices /= 3  # rely on float reading/writing being repeatable
     fo = io.StringIO("")
     write_ascii_stl(cube, fo)
     fo.seek(0)
@@ -173,7 +173,7 @@ def test_cube_write():
 def test_cube_write_binary():
     f = io.StringIO(cube_stl)
     cube = read_ascii_stl(f)
-    cube.vertices /= 3  # rely on float reading being repeatable
+    #cube.vertices /= 3  # won't work due to double -> float conversion
     fo = io.BytesIO(b"")
     write_binary_stl(cube, fo)
     fo.seek(0)
