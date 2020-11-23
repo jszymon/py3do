@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-def view_matplotlib(m):
+def view_matplotlib(m, *args, **kwargs):
     fvs = m.vertices[m.faces]  # vertices of faces
     bmin = fvs.min(axis=(0,1))
     bmax = fvs.max(axis=(0,1))
     center = (bmax+bmin)/2
     r = (bmax-bmin).max()
-    c = Poly3DCollection(fvs)
+    c = Poly3DCollection(fvs, *args, **kwargs)
     c.set_edgecolor("black")
     ax = plt.gcf().add_subplot(111, projection='3d')
     ax.add_collection3d(c)
