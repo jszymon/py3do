@@ -20,12 +20,12 @@ def view_pyglet(m, *args, **kwargs):
     # each vertex is repeated for each triangle to get 'faceted' look
     fvs = m.vertices[m.faces]  # vertices of faces
     fvs -= m.vertices.mean(axis=0)
-    fvs *= 10
+    #fvs *= 10
 
     # Create a Material and Group for the Model
     diffuse = [0.5, 0.0, 0.0, 1.0]
     ambient = [0.5, 0.0, 0.3, 1.0]
-    specular = [0.0, 0.0, 0.0, 0.0]
+    specular = [0.0, 0.0, 0.0, 1.0]
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 50
 
@@ -59,20 +59,21 @@ def view_pyglet(m, *args, **kwargs):
 
     @window.event
     def on_draw():
+        # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
         window.clear()
-        glPolygonOffset(1,1)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-        glEnable(GL_POLYGON_OFFSET_FILL)
+        #glPolygonOffset(1,1)
+        #glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+        #glEnable(GL_POLYGON_OFFSET_FILL)
         glEnable(GL_CULL_FACE)
         batch.draw()
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-        glDisable(GL_POLYGON_OFFSET_FILL)
-        batch_edge.draw()
+        #glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+        #glDisable(GL_POLYGON_OFFSET_FILL)
+        #batch_edge.draw()
     @window.event
     def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
-        glLoadIdentity()
+        #glLoadIdentity()
         glRotatef(1, dy, dx, 0)
-        glTranslatef(0, 0, -100)
+        #glTranslatef(0, 0, -100)
 
     def update(dt):
         pass
@@ -80,8 +81,8 @@ def view_pyglet(m, *args, **kwargs):
     def vec(*args):
         return (GLfloat * len(args))(*args)
     
-    glEnable(GL_MULTISAMPLE_ARB)
-    #glEnable(GL_DEPTH_TEST)
+    #glEnable(GL_MULTISAMPLE_ARB)
+    glEnable(GL_DEPTH_TEST)
     glLightfv(GL_LIGHT0, GL_AMBIENT, vec(0.3, 0.3, 0.3, 1))
     glLightfv(GL_LIGHT0, GL_DIFFUSE, vec(0.7, 0.7, 0.7, 1))
     glLightfv(GL_LIGHT0, GL_POSITION, vec(100.0, 100.0, 100.0, 0.0))
@@ -93,6 +94,10 @@ def view_pyglet(m, *args, **kwargs):
     #glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
     
     #glTranslatef(100,100,10)
+    #glTranslatef(0, 0, -100)
+    gluLookAt(0, 0, -100,
+              0, 0, 0,
+              0, 1, 0, )
     pyglet.clock.schedule_interval(update, 1/60)
     pyglet.app.run()
 
