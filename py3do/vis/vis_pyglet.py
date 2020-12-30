@@ -1,6 +1,19 @@
 import pyglet
 from pyglet.gl import *
 
+class ProjectionOrtho(pyglet.window.Projection):
+    def set(self, window_width, window_height, viewport_width, viewport_height):
+        glViewport(0, 0, max(1, viewport_width), max(1, viewport_height))
+        glMatrixMode(gl.GL_PROJECTION)
+        glLoadIdentity()
+        ww = max(1.0, window_width)
+        wh = max(1.0, window_height)
+        glOrtho(-ww/2, ww/2, -wh/2, wh/2, -1000.0, 1e5)
+        #glOrtho(0.0, max(1.0, window_width), 0.0, max(1.0, window_height), -1000.0, 1000.0)
+        glMatrixMode(GL_MODELVIEW)
+
+
+
 def view_pyglet(m, *args, **kwargs):
     # Direct OpenGL commands to this window.
     try:
@@ -11,8 +24,8 @@ def view_pyglet(m, *args, **kwargs):
         # Fall back to no multisampling for old hardware
         window = pyglet.window.Window(resizable=True)
 
-    #window.projection = pyglet.window.Projection2D()  # orthographic
-    window.projection = pyglet.window.Projection3D()  # perspective
+    window.projection = ProjectionOrtho()  # orthographic
+    #window.projection = pyglet.window.Projection3D()  # perspective
     batch = pyglet.graphics.Batch()
     batch_edge = pyglet.graphics.Batch()
     print("OpenGL Context: {}".format(window.context.get_info().version))
@@ -23,8 +36,8 @@ def view_pyglet(m, *args, **kwargs):
     #fvs *= 10
 
     # Create a Material and Group for the Model
-    diffuse = [0.5, 0.0, 0.0, 1.0]
-    ambient = [0.5, 0.0, 0.3, 1.0]
+    diffuse = [0.5, 0.3, 0.0, 1.0]
+    ambient = [0.5, 0.3, 0.0, 1.0]
     specular = [0.0, 0.0, 0.0, 1.0]
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 50
@@ -64,37 +77,36 @@ def view_pyglet(m, *args, **kwargs):
         #glPolygonOffset(1,1)
         #glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         #glEnable(GL_POLYGON_OFFSET_FILL)
-        glEnable(GL_CULL_FACE)
         batch.draw()
         #glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
         #glDisable(GL_POLYGON_OFFSET_FILL)
         #batch_edge.draw()
     @window.event
     def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
-        #glLoadIdentity()
-        glRotatef(1, dy, dx, 0)
-        #glTranslatef(0, 0, -100)
+        glRotatef(1, 0, dx, dy)
+    @window.event
+    def on_mouse_scroll(x, y, scroll_x, scroll_y):
+        #print(x, y, scroll_x, scroll_y)
+        s = 1 + scroll_y * 0.1
+        glScalef(s, s, s)
 
     def update(dt):
         pass
         #glRotatef(0.5, dt, dt, dt)
     def vec(*args):
         return (GLfloat * len(args))(*args)
-    
+
+
     #glEnable(GL_MULTISAMPLE_ARB)
     glEnable(GL_DEPTH_TEST)
+    glEnable(GL_NORMALIZE)  # FIX LIGHTING WITH glScale!!!!
     glLightfv(GL_LIGHT0, GL_AMBIENT, vec(0.3, 0.3, 0.3, 1))
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, vec(0.7, 0.7, 0.7, 1))
-    glLightfv(GL_LIGHT0, GL_POSITION, vec(100.0, 100.0, 100.0, 0.0))
-    glEnable(GL_LIGHTING)
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, vec(1.0, 1.0, 1.0, 1.0))
+    #glLightfv(GL_LIGHT0, GL_SPECULAR, vec(0.7, 0.7, 0.7, 1))
+    glLightfv(GL_LIGHT0, GL_POSITION, vec(0.0, 0.0, 1.0, 0.0))
     glEnable(GL_LIGHT0)
-    #glEnable(GL_LIGHT1)
+    glEnable(GL_LIGHTING)
     
-    # Uncomment this line for a wireframe view:
-    #glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-    
-    #glTranslatef(100,100,10)
-    #glTranslatef(0, 0, -100)
     gluLookAt(0, 0, -100,
               0, 0, 0,
               0, 1, 0, )
