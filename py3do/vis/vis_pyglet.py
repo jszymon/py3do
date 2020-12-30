@@ -97,7 +97,7 @@ def view_pyglet(m, *args, **kwargs):
         return (GLfloat * len(args))(*args)
 
 
-    #glEnable(GL_MULTISAMPLE_ARB)
+    glEnable(GL_MULTISAMPLE_ARB)
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_NORMALIZE)  # FIX LIGHTING WITH glScale!!!!
     glLightfv(GL_LIGHT0, GL_AMBIENT, vec(0.3, 0.3, 0.3, 1))
