@@ -62,10 +62,10 @@ def cylinder_faces(bottom_idxs, top_idxs):
         f = f1 + f2
     return np.array(f, dtype=np.uint)
 
-def cone_pipe(*args, n=10, close_bottom=False, close_top=False,
+def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
                   connect_top_bottom=False):
-    """r_1, h_1, r2, .... sequence."""
-    def make_cone_section(r, h):
+    """Make a circular shape based on r_1, h_1, r2, .... sequence."""
+    def make_cone_segment(r, h):
         nonlocal v_idx, vs, fcs, c
         if r == 0:
             new_v = np.array([[0, 0, h]])
@@ -88,14 +88,14 @@ def cone_pipe(*args, n=10, close_bottom=False, close_top=False,
     hi = 0.0
     for i, rh in enumerate(args):
         if i % 2 == 0:
-            make_cone_section(rh, hi)
+            make_cone_segment(rh, hi)
             prev_r = rh
         else:
             hi = rh
     if len(args) > 0 and i % 2 == 1:
-        make_cone_section(prev_r, hi)
+        make_cone_segment(prev_r, hi)
     if close_top:
-        make_cone_section(0, hi)
+        make_cone_segment(0, hi)
     if connect_top_bottom:
         new_fs = cylinder_faces(range(v_idx - len(vs[-1]), v_idx),
                                     range(len(vs[0])))
