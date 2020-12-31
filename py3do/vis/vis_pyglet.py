@@ -1,3 +1,5 @@
+import numpy as np
+
 import pyglet
 from pyglet.gl import *
 
@@ -31,9 +33,10 @@ def view_pyglet(m, *args, **kwargs):
     print("OpenGL Context: {}".format(window.context.get_info().version))
 
     # each vertex is repeated for each triangle to get 'faceted' look
-    fvs = m.vertices[m.faces]  # vertices of faces
-    fvs -= m.vertices.mean(axis=0)
-    #fvs *= 10
+    vs = m.vertices[:, [0,2,1]]
+    normals = m.normals[:, [0,2,1]]
+    fvs = vs[m.faces]  # vertices of faces
+    fvs -= vs.mean(axis=0)
 
     # Create a Material and Group for the Model
     diffuse = [0.5, 0.3, 0.0, 1.0]
@@ -63,10 +66,10 @@ def view_pyglet(m, *args, **kwargs):
     fvs = fvs.ravel()
     n = len(fvs) // 3
     batch.add(n, GL_TRIANGLES, group,
-                          ('v3f', fvs), ('n3f', m.normals.repeat(3,0).ravel()),
+                          ('v3f', fvs), ('n3f', normals.repeat(3,0).ravel()),
                           )
     batch_edge.add(n, GL_TRIANGLES, None,
-                          ('v3f', fvs), #('n3f', m.normals.repeat(3,0).ravel()),
+                          ('v3f', fvs), #('n3f', normals.repeat(3,0).ravel()),
                           ('c4f', n * (0.0, 0, 0, 1.0)),
                           )
 
