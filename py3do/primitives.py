@@ -62,7 +62,8 @@ def cylinder_faces(bottom_idxs, top_idxs):
         f = f1 + f2
     return np.array(f, dtype=np.uint)
 
-def cone_pipe(*args, n=10):
+def cone_pipe(*args, n=10, close_bottom=False, close_top=False,
+                  connect_top_bottom=False):
     """r_1, h_1, r2, .... sequence."""
     def make_cone_section(r, h):
         nonlocal v_idx, vs, fcs, c
@@ -72,12 +73,14 @@ def cone_pipe(*args, n=10):
             new_v = c * r
             new_v[:,2] = h
         if len(vs) > 0:
-            prev_v = vs[-1]
-            new_fs = cylinder_faces(range(v_idx - len(prev_v), v_idx), range(v_idx, v_idx + len(new_v)))
+            new_fs = cylinder_faces(range(v_idx - len(vs[-1]), v_idx),
+                                        range(v_idx, v_idx + len(new_v)))
             fcs.append(new_fs)
         vs.append(new_v)
         v_idx = v_idx + len(new_v)
 
+    if close_bottom:
+        args = [0, 0] + list(args)
     c = np.hstack([circle(n), np.zeros((n, 1))])
     vs = []
     v_idx = 0
@@ -90,8 +93,14 @@ def cone_pipe(*args, n=10):
         else:
             hi = rh
     if len(args) > 0 and i % 2 == 1:
-        print(prev_r, hi)
         make_cone_section(prev_r, hi)
+    if close_top:
+        make_cone_section(0, hi)
+    if connect_top_bottom:
+        new_fs = cylinder_faces(range(v_idx - len(vs[-1]), v_idx),
+                                    range(len(vs[0])))
+        fcs.append(new_fs)
+        
     v = np.vstack([np.empty((0, 3), dtype=np.float)] + vs)
     f = np.vstack([np.empty((0, 3), dtype=np.uint)] + fcs)
     m = Mesh(v, f)
