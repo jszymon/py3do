@@ -38,6 +38,30 @@ def circle(n):
     c[4*i == 3*n] = [0.0, -1.0]  # 3/2 pi
     return c
 
+def cylinder_faces(bottom_idxs, top_idxs):
+    """Heleper function to create faces between two rings of vertices
+    given by their indices.
+
+    Rings are assumed to be ordered.  Connections are between
+    consecutive pairs."""
+    nb = len(bottom_idxs)
+    nt = len(top_idxs)
+    if nt == nb == 1:  # no edges, degenerate cylinder
+        return np.empty((0, 3), dtype=np.uint)
+    if nb == 1 and nt > 1:
+        bi = bottom_idxs[0]
+        f = [(bi, top_idxs[(j+1) % nt], top_idxs[j]) for j in range(nt)]
+    elif nb > 1 and nt == 1:
+        ti = top_idxs[0]
+        f = [(ti, bottom_idxs[j], bottom_idxs[(j+1) % nb]) for j in range(nb)]
+    elif nb == nt:
+        f1 = [(top_idxs[(j+1) % nt], bottom_idxs[j], bottom_idxs[(j+1) % nb])
+                                  for j in range(nt)]
+        f2 = [(top_idxs[j], bottom_idxs[j], top_idxs[(j+1) % nt])
+                                  for j in range(nt)]
+        f = f1 + f2
+    return np.array(f, dtype=np.uint)
+
 def cone_pipe(*args, n=10):
     """r_1, h_1, r2, .... sequence."""
     def make_cone_section(r, h):
@@ -49,28 +73,10 @@ def cone_pipe(*args, n=10):
             new_v[:,2] = h
         if len(vs) > 0:
             prev_v = vs[-1]
-            nnv = len(new_v)
-            npv = len(prev_v)
-            if npv == nnv == 1:
-                pass # no edges, degenerate segment
-            else:
-                if len(prev_v) == 1 and len(new_v) > 1:
-                    new_fs = [(v_idx - 1, v_idx + (j + 1) % nnv, v_idx + j)
-                                  for j in range(nnv)]
-                elif len(prev_v) > 1 and len(new_v) == 1:
-                    new_fs = [(v_idx, v_idx - npv + j, v_idx - npv + (j + 1) % npv)
-                                  for j in range(npv)]
-                else:
-                    assert nnv == npv
-                    new_fs1 = [(v_idx + (j + 1) % nnv, v_idx - npv + j, v_idx - npv + (j + 1) % npv)
-                                  for j in range(nnv)]
-                    new_fs2 = [(v_idx + j, v_idx - npv + j, v_idx + (j + 1) % nnv)
-                                  for j in range(nnv)]
-                    new_fs = new_fs1 + new_fs2
-                fcs.append(np.array(new_fs))
+            new_fs = cylinder_faces(range(v_idx - len(prev_v), v_idx), range(v_idx, v_idx + len(new_v)))
+            fcs.append(new_fs)
         vs.append(new_v)
         v_idx = v_idx + len(new_v)
-            
 
     c = np.hstack([circle(n), np.zeros((n, 1))])
     vs = []
