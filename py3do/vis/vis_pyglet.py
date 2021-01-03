@@ -86,7 +86,7 @@ def view_pyglet(m, *args, **kwargs):
         #batch_edge.draw()
     @window.event
     def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
-        glRotatef(1, 0, dx, dy)
+        glRotatef(1, dy, 0, -dx)
     @window.event
     def on_mouse_scroll(x, y, scroll_x, scroll_y):
         #print(x, y, scroll_x, scroll_y)
