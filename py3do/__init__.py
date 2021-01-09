@@ -10,3 +10,4 @@ from .primitives import cone_pipe
 from .binary_relations import is_isomorphic
 from . import vis
 from . import io
+from . import gcode
