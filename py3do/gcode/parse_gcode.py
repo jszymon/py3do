@@ -5,6 +5,14 @@ from contextlib import nullcontext
 def _numbered_line_reader(f):
     for li, l in enumerate(f):
         yield li+1, l.strip()
+def _get_arg(args, a, conv=None):
+    for ai in args:
+        if ai.startswith(a):
+            ai = ai[len(a):]
+            if conv is not None:
+                ai = conv(ai)
+            return ai
+    return None
 
 def parse_gcode(f):
     if hasattr(f, 'read'):
@@ -12,10 +20,14 @@ def parse_gcode(f):
     else:
         f_ctx = open(f, 'r')
     # state
+    slicer = None
     x = y = z = e = None
     fr = None # feed rate
     rel_extrude = False
     rel_coord = False
+    speed_factor = 1.0
+    extrude_factor = 1.0
+    # end state
     with f_ctx as fl:
         for li, l in _numbered_line_reader(fl):
             l = l.strip()
@@ -25,6 +37,8 @@ def parse_gcode(f):
             _split_line = l.split(";", maxsplit=1)
             cmd = _split_line[0].upper()
             cmt = _split_line[1] if len(_split_line) > 1 else None
+            if cmt.startswith("Generated with Cura_SteamEngine"):
+                slicer = "Cura"
             if cmd == "":
                 continue
             _split_cmd = cmd.split()
@@ -49,8 +63,15 @@ def parse_gcode(f):
             elif cmd == "G91":
                 rel_coord = True
             elif cmd == "M220": # speed factor
-                pass
+                a = _get_arg(args, "S", float)
+                if a:
+                    speed_factor = a / 100
             elif cmd == "M221": # extrude factor
+                a = _get_arg(args, "S", float)
+                if a:
+                    extrude_factor = a / 100
+            elif cmd == "G92":
                 pass
-            
+            elif cmd == "G0" or cmd == "G1":
+                pass
             
