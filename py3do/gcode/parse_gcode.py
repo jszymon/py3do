@@ -2,6 +2,8 @@
 
 from contextlib import nullcontext
 
+import numpy as np
+
 def _numbered_line_reader(f):
     for li, l in enumerate(f):
         yield li+1, l.strip()
@@ -21,7 +23,8 @@ def parse_gcode(f):
         f_ctx = open(f, 'r')
     # state
     slicer = None
-    x = y = z = e = None
+    x = y = z = None
+    e = 0.0
     feed_rate = None
     rel_extrude = False
     rel_coord = False
@@ -33,8 +36,12 @@ def parse_gcode(f):
     e_offset = 0.0
     # end state
     events = []
+    line_nos = [] # line numbers for each position 
+    pos = [] # head positions
+    extruder = [] # extruder position
     with f_ctx as fl:
         for li, l in _numbered_line_reader(fl):
+            move_made = False
             l = l.strip()
             if l == "":
                 continue
@@ -59,6 +66,7 @@ def parse_gcode(f):
                         y = 0
                     if "Z" in args:
                         z = 0
+                move_made = True
             elif cmd == "M82":
                 rel_extrude = False
             elif cmd == "M83":
@@ -97,11 +105,14 @@ def parse_gcode(f):
                     a_coord = [0, 0, 0]
                 else:
                     a_coord = [x, y, z]
+                de = 0
                 for a in args:
                     ci = "XYZ".find(a[0])
                     if ci > -1:
+                        move_made = True
                         a_coord[ci] = float(a[1:])
                     elif a[0] == "E":
+                        move_made = True
                         a_e = float(a[1:])
                         if rel_extrude:
                             de = a_e
@@ -110,7 +121,7 @@ def parse_gcode(f):
                     elif a[0] == "F":
                         feed_rate = float(a[1:])
                 # compute new coords and move time
-                if rel_coord:
+                if not rel_coord:
                     a_coord[0] -= x
                     a_coord[1] -= y
                     a_coord[2] -= z
@@ -133,6 +144,12 @@ def parse_gcode(f):
                     pass
                 if cmt.startswith("MESH:"):
                     pass
+            # add new extrusion point
+            if move_made:
+                line_nos.append(li)
+                pos.append([x, y, z])
+                extruder.append(e)
+    return events, line_nos, pos, extruder
 
 class GCode:
     def __init__(self, f):
