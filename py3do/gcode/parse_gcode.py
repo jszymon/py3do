@@ -77,29 +77,52 @@ def parse_gcode(f):
                     extrude_factor = a / 100
             elif cmd == "G92":
                 for a in args:
+                    f = float(a[1:])
                     if a[0] == "E":
-                        e_offset = e
-                        e = 0
+                        e_offset += e - f
+                        e = f
                     elif a[0] == "X":
-                        x_offset = e
-                        x = 0
+                        x_offset += x - f
+                        x = f
                     elif a[0] == "Y":
-                        y_offset = e
-                        y = 0
+                        y_offset += y - f
+                        y = f
                     elif a[0] == "Z":
-                        z_offset = e
-                        z = 0
+                        z_offset += z - f
+                        z = f
                     else:
                         print("Unknown G92 coordinate")
             elif cmd == "G0" or cmd == "G1":
-                for a in args:
-                    if a[0] == "X":
-                        ax = float(a[1:])
-                    elif a[0] == "Y":
-                        ay = float(a[1:])
-                    # ...............
                 if rel_coord:
-                    pass
+                    a_coord = [0, 0, 0]
+                else:
+                    a_coord = [x, y, z]
+                for a in args:
+                    ci = "XYZ".find(a[0])
+                    if ci > -1:
+                        a_coord[ci] = float(a[1:])
+                    elif a[0] == "E":
+                        a_e = float(a[1:])
+                        if rel_extrude:
+                            de = a_e
+                        else:
+                            de = a_e - e
+                    elif a[0] == "F":
+                        feed_rate = float(a[1:])
+                # compute new coords and move time
+                if rel_coord:
+                    a_coord[0] -= x
+                    a_coord[1] -= y
+                    a_coord[2] -= z
+                d = a_coord
+                x += d[0]
+                y += d[1]
+                z += d[2]
+                e += de
+                dist = np.sqrt(sum(c*c for c in d))
+                if dist == 0:
+                    dist = de
+                t = dist / feed_rate * 60
             else:
                 events.append((li, ["Unhandled Gcode", cmd, args]))
             # parse Cura comments
