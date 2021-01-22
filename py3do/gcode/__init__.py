@@ -1,1 +1,1 @@
-from .parse_gcode import parse_gcode
+from .gcode import GCode
