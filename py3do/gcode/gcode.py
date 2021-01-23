@@ -20,14 +20,37 @@ class GCode:
     def __init__(self, f):
         self.parse_gcode(f)
         self.pos = np.array(self.pos)
+        # index line number -> pos array
+        self.idx = np.full(self.n_lines, -1)
+        prev_li = 0
+        for i, li in enumerate(self.line_nos):
+            self.idx[prev_li:li] = i-1
+            prev_li = li
+        for j in range(li, self.n_lines):
+            self.idx[j] = i
+        self.split_layers()
 
+    def split_layers(self):
+        self.layers = list()
+        self.layers.append(0) # 0-th layer contains initial moves and purge line
+        if self.slicer != "Cura":
+            print("Splitting into layers only implemented for Cura gcode")
+            return
+        for li, ev in self.events:
+            if ev[0] == "Layer Start":
+                self.layers.append(self.idx[li])
+                print(li, self.idx[li])
+            elif ev[0] == "End Main Print":
+                self.layers.append(self.idx[li])
+        self.n_layers = len(self.layers)
+        self.layers.append(self.pos.shape[0])
     def parse_gcode(self, f):
         if hasattr(f, 'read'):
             f_ctx = nullcontext(f)
         else:
             f_ctx = open(f, 'r')
         # state
-        slicer = None
+        self.slicer = None
         x = y = z = None
         e = 0.0
         feed_rate = None
@@ -45,6 +68,9 @@ class GCode:
         self.pos = [] # head positions
         self.extruder = [] # extruder position
         self.dts = []
+        self.ds = []
+        self.dists = []
+        self.des = [] # extruder distances
         with f_ctx as fl:
             for li, l in _numbered_line_reader(fl):
                 move_made = False
@@ -56,7 +82,20 @@ class GCode:
                 cmd = _split_line[0].upper()
                 cmt = _split_line[1] if len(_split_line) > 1 else None
                 if cmt is not None and cmt.startswith("Generated with Cura_SteamEngine"):
-                    slicer = "Cura"
+                    self.slicer = "Cura"
+                # parse Cura comments
+                if self.slicer == "Cura" and cmt is not None:
+                    print(cmt)
+                    if cmt.startswith("LAYER:"):
+                        layer_no = int(cmt[6:])
+                        self.events.append((li, ["Layer Start", layer_no]))
+                    #if cmt.startswith("TIME_ELAPSED:"):
+                    #    self.events.append((li, ["End Main Print", layer_no]))                        
+                    if cmt.startswith("TYPE:"):
+                        pass
+                    if cmt.startswith("MESH:"):
+                        pass
+                # parse command
                 if cmd == "":
                     continue
                 _split_cmd = cmd.split()
@@ -74,6 +113,8 @@ class GCode:
                             z = 0
                     move_made = True
                     dt = 5 # arbitrary value
+                    dist = 5 # arbitrary value
+                    de = 0
                 elif cmd == "M82":
                     rel_extrude = False
                 elif cmd == "M83":
@@ -139,25 +180,22 @@ class GCode:
                     e += de
                     dist = np.sqrt(sum(c*c for c in d))
                     if dist == 0:
-                        dist = de
+                        dist = abs(de)
                     dt = dist / feed_rate * 60
                 else:
                     self.events.append((li, ["Unhandled Gcode", cmd, args]))
-                # parse Cura comments
-                if slicer == "Cura" and cmt is not None:
-                    if cmt.startswith("LAYER:"):
-                        layer_no = int(cmt[6:])
-                        self.events.append((li, ["Layer Start", layer_no]))
-                    if cmt.startswith("TYPE:"):
-                        pass
-                    if cmt.startswith("MESH:"):
-                        pass
                 # add new extrusion point
                 if move_made:
                     self.line_nos.append(li)
                     self.pos.append([x, y, z])
                     self.extruder.append(e)
                     self.dts.append(dt)
-
-    # plot
-    # split into layers
+                    self.dists.append(dist)
+                    self.des.append(de)
+            self.n_lines = li
+    # plot:
+    # 3d
+    # layers
+    # move lengths
+    # move length histograms
+    # split into layers for non-Cura gcode
