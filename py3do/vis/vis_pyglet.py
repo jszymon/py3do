@@ -3,6 +3,7 @@ import numpy as np
 import pyglet
 from pyglet.gl import *
 
+
 class ProjectionOrtho(pyglet.window.Projection):
     def set(self, window_width, window_height, viewport_width, viewport_height):
         glViewport(0, 0, max(1, viewport_width), max(1, viewport_height))
@@ -11,12 +12,14 @@ class ProjectionOrtho(pyglet.window.Projection):
         ww = max(1.0, window_width)
         wh = max(1.0, window_height)
         glOrtho(-ww/2, ww/2, -wh/2, wh/2, -1000.0, 1e5)
-        #glOrtho(0.0, max(1.0, window_width), 0.0, max(1.0, window_height), -1000.0, 1000.0)
         glMatrixMode(GL_MODELVIEW)
 
-
+scale = 1.0
+rot_z = 0
+rot_x = 0
 
 def view_pyglet(m, *args, **kwargs):
+    global scale, rot_z, rot_x
     # Direct OpenGL commands to this window.
     try:
         # Try and create a window with multisampling (antialiasing)
@@ -58,11 +61,6 @@ def view_pyglet(m, *args, **kwargs):
     #material = pyglet.model.Material("custom", diffuse, ambient, specular, emission, shininess)
     #group = pyglet.model.MaterialGroup(material=material)
 
-    #n = len(m.vertices)
-    #batch.add_indexed(n, GL_TRIANGLES, group, m.faces.ravel(),
-    #                      ('v3f', v.ravel()),
-    #                      
-    #                      )
     fvs = fvs.ravel()
     n = len(fvs) // 3
     batch.add(n, GL_TRIANGLES, group,
@@ -75,6 +73,11 @@ def view_pyglet(m, *args, **kwargs):
 
     @window.event
     def on_draw():
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        glRotatef(rot_x, 1, 0, 0)
+        glRotatef(rot_z, 0, 1, 0)
+        glScalef(scale, scale, scale)
         # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
         window.clear()
         #glPolygonOffset(1,1)
@@ -86,16 +89,35 @@ def view_pyglet(m, *args, **kwargs):
         #batch_edge.draw()
     @window.event
     def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
-        glRotatef(1, dy, 0, -dx)
+        global rot_z, rot_x
+        rot_x -= dy / 6
+        rot_z += dx / 3
     @window.event
     def on_mouse_scroll(x, y, scroll_x, scroll_y):
-        #print(x, y, scroll_x, scroll_y)
-        s = 1 + scroll_y * 0.1
-        glScalef(s, s, s)
+        global scale
+        scale = scale * (1 + scroll_y * 0.1)
+    @window.event
+    def on_key_press(symbol, modifiers):
+        if (modifiers & pyglet.window.key.MOD_CTRL) and symbol == pyglet.window.key.W:
+            window.close()
+    @window.event
+    def on_text_motion(motion):
+        global rot_x, rot_z, scale
+        if motion == pyglet.window.key.MOTION_LEFT:
+            rot_z += -5
+        elif motion == pyglet.window.key.MOTION_RIGHT:
+            rot_z += 5
+        elif motion == pyglet.window.key.MOTION_UP:
+            rot_x += -5
+        elif motion == pyglet.window.key.MOTION_DOWN:
+            rot_x += 5
+        elif motion == pyglet.window.key.MOTION_NEXT_PAGE:
+            scale *= 0.9
+        elif motion == pyglet.window.key.MOTION_PREVIOUS_PAGE:
+            scale *= 1.1
 
     def update(dt):
-        pass
-        #glRotatef(0.5, dt, dt, dt)
+            pass
     def vec(*args):
         return (GLfloat * len(args))(*args)
 
