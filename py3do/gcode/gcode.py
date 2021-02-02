@@ -85,14 +85,13 @@ class GCode:
                     self.slicer = "Cura"
                 # parse Cura comments
                 if self.slicer == "Cura" and cmt is not None:
-                    print(cmt)
                     if cmt.startswith("LAYER:"):
                         layer_no = int(cmt[6:])
                         self.events.append((li, ["Layer Start", layer_no]))
                     #if cmt.startswith("TIME_ELAPSED:"):
                     #    self.events.append((li, ["End Main Print", layer_no]))                        
                     if cmt.startswith("TYPE:"):
-                        pass
+                        self.events.append((li, ["Start", cmt[5:]]))
                     if cmt.startswith("MESH:"):
                         pass
                 # parse command
@@ -180,10 +179,16 @@ class GCode:
                     e += de
                     dist = np.sqrt(sum(c*c for c in d))
                     if dist == 0:
-                        dist = abs(de)
-                    dt = dist / feed_rate * 60
+                        dt = abs(de) / feed_rate * 60
+                    else:
+                        dt = dist / feed_rate * 60
+                    if de == 0 and cmd[1] == "1":
+                        self.events.append((li, ["Warning: G1 move without extrusion"]))
+                        print(li, "Warning: G1 move without extrusion", len(self.pos))
+                    if de != 0 and cmd[1] == "0":
+                        self.events.append((li, ["Warning: G0 move with extrusion"]))
                 else:
-                    self.events.append((li, ["Unhandled Gcode", cmd, args]))
+                    self.events.append((li, ["Warning: Unhandled Gcode", cmd, args]))
                 # add new extrusion point
                 if move_made:
                     self.line_nos.append(li)
