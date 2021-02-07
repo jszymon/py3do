@@ -11,12 +11,13 @@ class ProjectionOrtho(pyglet.window.Projection):
         glLoadIdentity()
         ww = max(1.0, window_width)
         wh = max(1.0, window_height)
-        glOrtho(-ww/2, ww/2, -wh/2, wh/2, -1000.0, 1e5)
+        glOrtho(-ww/2, ww/2, -wh/2, wh/2, -10000.0, 1e5)
         glMatrixMode(GL_MODELVIEW)
 
 scale = 1.0
 rot_z = 0
 rot_x = 0
+wireframe = True
 
 def view_pyglet(m, *args, **kwargs):
     global scale, rot_z, rot_x
@@ -29,6 +30,11 @@ def view_pyglet(m, *args, **kwargs):
         # Fall back to no multisampling for old hardware
         window = pyglet.window.Window(resizable=True)
 
+    label = pyglet.text.Label('Wireframe',
+                          #font_name='Times New Roman',
+                          #font_size=36,
+                          x=10, y=10)
+    
     window.projection = ProjectionOrtho()  # orthographic
     #window.projection = pyglet.window.Projection3D()  # perspective
     batch = pyglet.graphics.Batch()
@@ -52,41 +58,51 @@ def view_pyglet(m, *args, **kwargs):
     group = pyglet.model.MaterialGroup(material=material)
 
     # Create a Material and Group for Edges
-    #diffuse = [0.5, 0.0, 0.0, 1.0]
-    #ambient = [0.5, 0.0, 0.3, 1.0]
-    #specular = [0.0, 0.0, 0.0, 0.0]
-    #emission = [0.0, 0.0, 0.0, 1.0]
-    #shininess = 50
+    diffuse = [0.5, 1.0, 1.0, 1.0]
+    ambient = [0.5, 1.0, 1.0, 1.0]
+    specular = [0.0, 0.0, 0.0, 0.0]
+    emission = [0.0, 0.0, 0.0, 1.0]
+    shininess = 50
     #
-    #material = pyglet.model.Material("custom", diffuse, ambient, specular, emission, shininess)
-    #group = pyglet.model.MaterialGroup(material=material)
+    material = pyglet.model.Material("custom2", diffuse, ambient, specular, emission, shininess)
+    group2 = pyglet.model.MaterialGroup(material=material)
 
     fvs = fvs.ravel()
     n = len(fvs) // 3
     batch.add(n, GL_TRIANGLES, group,
                           ('v3f', fvs), ('n3f', normals.repeat(3,0).ravel()),
                           )
-    batch_edge.add(n, GL_TRIANGLES, None,
+    batch_edge.add(n, GL_TRIANGLES, group2,
                           ('v3f', fvs), #('n3f', normals.repeat(3,0).ravel()),
                           ('c4f', n * (0.0, 0, 0, 1.0)),
                           )
 
     @window.event
     def on_draw():
+        global rot_x, rot_z, scale
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         glRotatef(rot_x, 1, 0, 0)
         glRotatef(rot_z, 0, 1, 0)
         glScalef(scale, scale, scale)
-        # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
         window.clear()
-        #glPolygonOffset(1,1)
-        #glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
-        #glEnable(GL_POLYGON_OFFSET_FILL)
+        # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
+        glPolygonOffset(1,1)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+        if wireframe:
+            glEnable(GL_POLYGON_OFFSET_FILL)
         batch.draw()
-        #glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-        #glDisable(GL_POLYGON_OFFSET_FILL)
-        #batch_edge.draw()
+        if wireframe:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
+            glDisable(GL_POLYGON_OFFSET_FILL)
+            batch_edge.draw()
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+        # draw UI
+        glPushMatrix()
+        glLoadIdentity()
+        glTranslatef(-window.width/2,0,10000) # = projection's near val
+        label.draw()
+        glPopMatrix()
     @window.event
     def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
         global rot_z, rot_x
