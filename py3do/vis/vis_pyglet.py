@@ -15,8 +15,8 @@ class ProjectionOrtho(pyglet.window.Projection):
         glMatrixMode(GL_MODELVIEW)
 
 scale = 1.0
-rot_z = 0
-rot_x = 0
+rot_z = 0.0
+rot_x = 0.0
 wireframe = True
 
 def view_pyglet(m, *args, **kwargs):
@@ -131,6 +131,10 @@ def view_pyglet(m, *args, **kwargs):
             scale *= 0.9
         elif motion == pyglet.window.key.MOTION_PREVIOUS_PAGE:
             scale *= 1.1
+        elif motion == pyglet.window.key.MOTION_BEGINNING_OF_LINE:
+            scale = 1.0
+            rot_z = 0.0
+            rot_x = 0.0
 
     def update(dt):
             pass
@@ -151,6 +155,6 @@ def view_pyglet(m, *args, **kwargs):
     gluLookAt(0, 0, -100,
               0, 0, 0,
               0, 1, 0, )
-    pyglet.clock.schedule_interval(update, 1/60)
+    #pyglet.clock.schedule_interval(update, 1/60)
     pyglet.app.run()
 
