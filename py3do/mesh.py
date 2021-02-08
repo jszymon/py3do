@@ -53,8 +53,7 @@ class Mesh:
         if self.normals is not None:
             _check_points_array(self.normals, "normals")
         else:
-            pass
-            #self.normals, _ = normals_Newell(self)
+            self.normals, _ = normals_cross(self)
 
     def round_coords(self, decimals, inplace=False, merge=False):
         """Round coordinates of all points.
