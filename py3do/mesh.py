@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from .geom import normals_cross
+
 def _as_3col(x, fl=True):
     """Convert x to 3 column array.
 
@@ -53,3 +55,17 @@ class Mesh:
         else:
             pass
             #self.normals, _ = normals_Newell(self)
+
+    def round_coords(self, decimals, inplace=False, merge=False):
+        """Round coordinates of all points.
+
+        merge identical points if requested."""
+        if merge:
+            raise NotImplementedError("round_coords: Merging is not implemented")
+        if inplace:
+            np.around(self.vertices, decimals, out=self.vertices)
+            if self.normals is not None:
+                self.normals, _ = normals_cross(self)
+            return None
+        return Mesh(np.around(self.vertices, decimals),
+                    self.faces, self.normals)
