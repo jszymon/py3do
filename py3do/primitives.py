@@ -23,7 +23,9 @@ _cube_normals = np.array([[-0.5, 0, 0], [-0.5, 0, 0],
 
 def cube():
     """A unit cube."""
-    c = Mesh(_cube_vertices, _cube_faces, normals=_cube_normals)
+    c = Mesh(_cube_vertices.copy(),
+                _cube_faces.copy(),
+                normals=_cube_normals.copy())
     return c
 
 def circle(n):
