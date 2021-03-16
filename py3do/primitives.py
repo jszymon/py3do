@@ -66,7 +66,9 @@ def cylinder_faces(bottom_idxs, top_idxs):
 
 def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
                   connect_top_bottom=False):
-    """Make a circular shape based on r_1, h_1, r2, .... sequence."""
+    """Make a circular shape based on r_1, h_2, r2, .... sequence.
+
+    h_1 is assumed to be 0."""
     def make_cone_segment(r, h):
         nonlocal v_idx, vs, fcs, c
         if r == 0:
@@ -96,7 +98,7 @@ def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
             hi = rh
     if len(args) > 0 and i % 2 == 1:
         make_cone_segment(prev_r, hi)
-    if close_top:
+    if len(args) > 0 and close_top and prev_r != 0:
         make_cone_segment(0, hi)
     if connect_top_bottom:
         new_fs = cylinder_faces(range(v_idx - len(vs[-1]), v_idx),
