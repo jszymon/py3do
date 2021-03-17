@@ -1,6 +1,8 @@
 import pytest
 
-from py3do.primitives import cube
+import numpy as np
+
+from py3do.primitives import cube, cone_pipe
 
 from py3do.topo import repeated_face_vertices
 from py3do.topo import EdgeToFaceMap
@@ -22,4 +24,18 @@ def test_repeated_vertices_bad():
 def test_edge_face_map():
     c = cube()
     efm = EdgeToFaceMap(c)
+    assert efm.manifold
+    assert efm.watertight
+    assert efm.oriented
+def test_edge_face_map2():
+    cyl = cone_pipe(0, 0, 1, 1, 1, 1, 0, n=10)
+    efm = EdgeToFaceMap(cyl)
+    assert efm.manifold
+    assert efm.watertight
+    assert efm.oriented
+def test_edge_face_map2():
+    open_cyl = cone_pipe(1, 1, n=10)
+    efm = EdgeToFaceMap(open_cyl)
+    assert efm.manifold
+    assert efm.oriented
     
