@@ -33,9 +33,10 @@ def test_edge_face_map2():
     assert efm.manifold
     assert efm.watertight
     assert efm.oriented
-def test_edge_face_map2():
+def test_edge_face_map3():
     open_cyl = cone_pipe(1, 1, n=10)
     efm = EdgeToFaceMap(open_cyl)
     assert efm.manifold
+    assert not efm.watertight
     assert efm.oriented
     

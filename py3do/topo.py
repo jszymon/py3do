@@ -39,17 +39,15 @@ class EdgeToFaceMap:
         self.unique_edges, self.unique_edges_ptr, self.face_counts = \
                         np.unique(self.edges_rec[["i", "j"]],
                         return_index=True, return_counts=True)
-        if np.all(self.face_counts <= 2):
-            self.manifold = True
-        if np.all(self.face_counts == 2):
-            self.watertight = True
+        self.manifold = np.all(self.face_counts <= 2)
+        self.watertight = np.all(self.face_counts == 2)
         # check edge orientation
-        ptr = self.unique_edges_ptr[self.face_counts == 2]
+        fc2_idx = np.nonzero(self.face_counts == 2)[0]
+        ptr = self.unique_edges_ptr[fc2_idx]
         orients = self.orientations[ptr] + self.orientations[ptr + 1]
         self.oriented_edge = np.full(self.unique_edges.shape[0], False)
-        self.oriented_edge[self.face_counts == 2][orients == 1] = True
+        self.oriented_edge[fc2_idx[orients == 1]] = True
         self.oriented_edge[self.face_counts == 1] = True
-        print(orients)
         self.oriented = np.all(self.oriented_edge)
     def get_boundary_edges(self):
         pass
