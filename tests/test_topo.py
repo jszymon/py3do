@@ -27,16 +27,23 @@ def test_edge_face_map():
     assert efm.manifold
     assert efm.watertight
     assert efm.oriented
+    assert len(efm.get_misoriented_edges()) == 0
+    assert len(efm.get_multiface_edges()) == 0
+    assert len(efm.get_boundary_edges()) == 0
 def test_edge_face_map2():
     cyl = cone_pipe(0, 0, 1, 1, 1, 1, 0, n=10)
     efm = EdgeToFaceMap(cyl)
     assert efm.manifold
     assert efm.watertight
     assert efm.oriented
+    assert len(efm.get_misoriented_edges()) == 0
+    assert len(efm.get_boundary_edges()) == 0
 def test_edge_face_map3():
     open_cyl = cone_pipe(1, 1, n=10)
     efm = EdgeToFaceMap(open_cyl)
     assert efm.manifold
     assert not efm.watertight
     assert efm.oriented
+    assert len(efm.get_misoriented_edges()) == 0
+    assert len(efm.get_boundary_edges()) == 20
     

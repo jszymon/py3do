@@ -50,9 +50,14 @@ class EdgeToFaceMap:
         self.oriented_edge[self.face_counts == 1] = True
         self.oriented = np.all(self.oriented_edge)
     def get_boundary_edges(self):
-        pass
+        return self.unique_edges[self.face_counts == 1]
+    def get_multiface_edges(self):
+        """Get edges adjacent to more than two faces."""
+        return self.unique_edges[self.face_counts > 2]
+    def get_misoriented_edges(self):
+        return self.unique_edges[~self.oriented_edge]
     def find_faces(self, i, j=None):
-        """Find faces for given edges."""
+        """Find faces adjacent to given edges."""
         if np.isscalar(i):
             if not np.isscalar(j):
                 raise RuntimeError("Edge indices must have matching shapes")
