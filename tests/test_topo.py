@@ -27,8 +27,8 @@ def test_edge_face_map():
     assert efm.manifold
     assert efm.watertight
     assert efm.oriented
-    assert len(efm.get_misoriented_edges()) == 0
     assert len(efm.get_multiface_edges()) == 0
+    assert len(efm.get_misoriented_edges()) == 0
     assert len(efm.get_boundary_edges()) == 0
 def test_edge_face_map2():
     cyl = cone_pipe(0, 0, 1, 1, 1, 1, 0, n=10)
@@ -36,6 +36,7 @@ def test_edge_face_map2():
     assert efm.manifold
     assert efm.watertight
     assert efm.oriented
+    assert len(efm.get_multiface_edges()) == 0
     assert len(efm.get_misoriented_edges()) == 0
     assert len(efm.get_boundary_edges()) == 0
 def test_edge_face_map3():
@@ -44,6 +45,17 @@ def test_edge_face_map3():
     assert efm.manifold
     assert not efm.watertight
     assert efm.oriented
+    assert len(efm.get_multiface_edges()) == 0
     assert len(efm.get_misoriented_edges()) == 0
     assert len(efm.get_boundary_edges()) == 20
-    
+def test_edge_face_map4():
+    c = cube()
+    # add spurious face to make edge (1,3) touch 3 faces
+    c.faces = np.vstack([c.faces, [[1,3,6]]])
+    efm = EdgeToFaceMap(c)
+    assert not efm.manifold
+    assert not efm.watertight
+    assert not efm.oriented
+    assert len(efm.get_misoriented_edges()) > 0
+    assert len(efm.get_multiface_edges()) == 1
+    assert len(efm.get_boundary_edges()) > 0
