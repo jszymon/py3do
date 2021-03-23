@@ -59,3 +59,20 @@ def test_edge_face_map4():
     assert len(efm.get_misoriented_edges()) > 0
     assert len(efm.get_multiface_edges()) == 1
     assert len(efm.get_boundary_edges()) > 0
+    # test returned faces
+    for ij in [[0,3], [(0,3)], [[0,3]]]:  # various arg types
+        f = efm.find_faces(*ij)
+        assert len(f) == 1
+        f = f.popitem()[1]
+        assert len(f) == 2
+        assert 0 in f
+        assert 1 in f
+    f = efm.find_faces(1,3)
+    assert len(f) == 1
+    f = f.popitem()[1]
+    assert len(f) == 3
+    assert 0 in f
+    assert 10 in f
+    assert 12 in f
+    f = efm.find_faces([[0,3], [1,3]])
+    assert len(f) == 2

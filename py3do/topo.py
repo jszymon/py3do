@@ -23,16 +23,17 @@ class EdgeToFaceMap:
         edges = np.concatenate([edges1, edges2, edges3])
         orientations = (edges[:,0] > edges[:,1])
         edges[orientations] = edges[orientations][:, [1,0]]  # sort edge endpoints
-        self.edges = np.column_stack([edges,
+        edges = np.column_stack([edges,
                         np.tile(np.arange(m.faces.shape[0],
                                               dtype=edges.dtype), 3)])
-        rec_dtype = self.edges.dtype
+        rec_dtype = edges.dtype
         self.view_dt = np.dtype([("i", rec_dtype), ("j", rec_dtype),
                                      ("face", rec_dtype)])
+        self.query_dt = np.dtype([("i", rec_dtype), ("j", rec_dtype)])
         # create a view to emulate lexicographic searchsorted
-        assert self.edges.flags.c_contiguous
-        n = self.edges.shape[0]
-        edges_rec = self.edges.view(dtype=self.view_dt).reshape((n,))
+        assert edges.flags.c_contiguous
+        n = edges.shape[0]
+        edges_rec = edges.view(dtype=self.view_dt).reshape((n,))
         idx = edges_rec.argsort()
         self.edges_rec = edges_rec[idx]
         self.orientations = orientations[idx] * 1
@@ -56,16 +57,24 @@ class EdgeToFaceMap:
         return self.unique_edges[self.face_counts > 2]
     def get_misoriented_edges(self):
         return self.unique_edges[~self.oriented_edge]
-    def find_faces(self, i, j=None):
+    def find_faces(self, i, j=None, return_type="dict"):
         """Find faces adjacent to given edges."""
+        dt = self.query_dt
         if np.isscalar(i):
             if not np.isscalar(j):
                 raise RuntimeError("Edge indices must have matching shapes")
-            ij = np.array([i, j, 0], dtype=self.view_dt)
+            ij = np.array([(i, j)], dtype=dt)
         elif j is not None:
-            ij = np.column_stack([i, j, np.zeros(i.shape[0])])
-            ij = np.array(ij, dtype=self.view_dt)
+            ij = np.squeeze(np.atleast_2d(np.column_stack([i, j])).view(dt))
         else:
-            ij = np.vstack([i, j, np.zeros(i.shape[0])])
-            ij = np.array(ij, dtype=self.view_dt)
-        
+            ij = np.atleast_2d(i)
+            ij = np.atleast_2d(i).view(dt).reshape((len(ij),))
+        indices = np.searchsorted(self.unique_edges, ij)
+        assert return_type == "dict"
+        ret = dict()
+        for k in indices:
+            e = tuple(self.unique_edges[k])
+            nf = self.face_counts[k]
+            idx = self.unique_edges_ptr[k]
+            ret[e] = list(self.edges_rec[idx:idx+nf]["face"])
+        return ret
