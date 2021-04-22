@@ -33,3 +33,25 @@ def normals_Newell(m):
     areas = np.linalg.norm(normals, axis=1)
     normals /= areas.reshape(-1,1)
     return normals, areas
+
+def vertex_normals(m, method="average"):
+    """Compute vertex normals based on face normals.
+
+    Available methods are
+    * 'average': average of normals of all adjacent faces
+    * 'weighted average': as above but weighted by face area
+    * 'equal angles': vertex normal forms equal angle with adjacent faces"""
+    if method == "average" or method == "weighted average":
+        v_normals = np.zeros_like(m.vertices)
+        if method == "average":
+            f_normals = m.normals
+        else:
+            f_normals, areas = normals_cross(m)
+            f_normals *= areas.reshape(-1,1)
+        v_normals[m.faces[:,0]] += f_normals
+        v_normals[m.faces[:,1]] += f_normals
+        v_normals[m.faces[:,2]] += f_normals
+        v_normals /= np.linalg.norm(v_normals, axis=1).reshape(-1,1)
+    else:
+        raise NotImplemented("vertex normals method '" + method + "' not implemented")
+    return v_normals
