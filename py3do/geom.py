@@ -50,7 +50,7 @@ def vertex_normals(m, method="average"):
             f_normals *= areas.reshape(-1,1)
         v_normals[m.faces[:,0]] += f_normals
         v_normals[m.faces[:,1]] += f_normals
-        v_normals[m.faces[:,2]] += f_normals
+        v_normals[m.faces[:,2]] += f_normals,
         v_normals /= np.linalg.norm(v_normals, axis=1).reshape(-1,1)
     else:
         raise NotImplemented("vertex normals method '" + method + "' not implemented")
