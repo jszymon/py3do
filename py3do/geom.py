@@ -10,7 +10,7 @@ def normals_cross(m):
     normals = np.cross(d1, d2)
     areas = np.linalg.norm(normals, axis=1)
     normals /= areas.reshape(-1,1)
-    return normals, areas
+    return normals, areas / 2
     
 
 def normals_Newell(m):
@@ -32,26 +32,67 @@ def normals_Newell(m):
     #               np.roll(fvs + rolled_fvs, 1, axis=2)).sum(axis=1)
     areas = np.linalg.norm(normals, axis=1)
     normals /= areas.reshape(-1,1)
-    return normals, areas
+    return normals, areas / 2
 
-def vertex_normals(m, method="average"):
+def face_angles(m):
+    """Angles in faces adjacent to each vertex.
+
+    use method from https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf"""
+    fvs = m.vertices[m.faces]  # vertices of faces
+    d1 = (fvs[:,1,:] - fvs[:,0,:])
+    l1 = np.linalg.norm(d1, axis=1).reshape(-1,1)
+    d2 = (fvs[:,2,:] - fvs[:,1,:])
+    l2 = np.linalg.norm(d2, axis=1).reshape(-1,1)
+    d3 = (fvs[:,0,:] - fvs[:,2,:])
+    l3 = np.linalg.norm(d3, axis=1).reshape(-1,1)
+    #2arctan2( ||x·||y|| – ||x||·y||/||x·||y|| + ||x||·y|| )
+    angles0 = np.arctan2(np.linalg.norm(d1*l3 - d3*l1, axis=1),
+                         np.linalg.norm(d1*l3 + d3*l1, axis=1))
+    angles1 = np.arctan2(np.linalg.norm(d1*l2 - d2*l1, axis=1),
+                         np.linalg.norm(d1*l2 + d2*l1, axis=1))
+    angles2 = np.arctan2(np.linalg.norm(d2*l3 - d3*l2, axis=1),
+                         np.linalg.norm(d2*l3 + d3*l2, axis=1))
+    return np.column_stack([angles0, angles1, angles2])
+
+def vertex_normals(m, method="average", normalize=True):
     """Compute vertex normals based on face normals.
 
     Available methods are
     * 'average': average of normals of all adjacent faces
-    * 'weighted average': as above but weighted by face area
-    * 'equal angles': vertex normal forms equal angle with adjacent faces"""
-    if method == "average" or method == "weighted average":
+    * 'area weighted': as above but weighted by face area
+    * 'angle weighted': as above but weighted by face angle adjacent to vertex
+    """
+    if method in ["average", "area weighted", "angle weighted"]:
         v_normals = np.zeros_like(m.vertices)
         if method == "average":
-            f_normals = m.normals
-        else:
+            f_normals0 = f_normals1 = f_normals2 = m.normals
+            den0 = den1 = den2 = 1
+        elif  method == "area weighted":
             f_normals, areas = normals_cross(m)
-            f_normals *= areas.reshape(-1,1)
-        v_normals[m.faces[:,0]] += f_normals
-        v_normals[m.faces[:,1]] += f_normals
-        v_normals[m.faces[:,2]] += f_normals,
-        v_normals /= np.linalg.norm(v_normals, axis=1).reshape(-1,1)
+            den0 = den1 = den2 = areas
+            f_normals *= den0.reshape(-1,1)
+            f_normals0 = f_normals1 = f_normals2 = f_normals
+        else:
+            angles = face_angles(m)
+            f_normals = m.normals
+            den0 = angles[:,0]
+            f_normals0 = f_normals * den0.reshape(-1,1)
+            den1 = angles[:,1]
+            f_normals1 = f_normals * den1.reshape(-1,1)
+            den2 = angles[:,2]
+            f_normals2 = f_normals * den2.reshape(-1,1)
+        v_normals[m.faces[:,0]] += f_normals0
+        v_normals[m.faces[:,1]] += f_normals1
+        v_normals[m.faces[:,2]] += f_normals2
+        if normalize:
+            v_normals /= np.linalg.norm(v_normals, axis=1).reshape(-1,1)
+        else:
+            denoms = np.zeros(m.vertices.shape[0])
+            denoms[m.faces[:,0]] += den0
+            denoms[m.faces[:,1]] += den1
+            denoms[m.faces[:,2]] += den2
+            import ipdb;ipdb.set_trace()
+            v_normals /= denoms.reshape(-1,1)
     else:
         raise NotImplemented("vertex normals method '" + method + "' not implemented")
     return v_normals
