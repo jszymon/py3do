@@ -46,12 +46,12 @@ def face_angles(m):
     d3 = (fvs[:,0,:] - fvs[:,2,:])
     l3 = np.linalg.norm(d3, axis=1).reshape(-1,1)
     #2arctan2( ||x·||y|| – ||x||·y||/||x·||y|| + ||x||·y|| )
-    angles0 = np.arctan2(np.linalg.norm(d1*l3 - d3*l1, axis=1),
-                         np.linalg.norm(d1*l3 + d3*l1, axis=1))
-    angles1 = np.arctan2(np.linalg.norm(d1*l2 - d2*l1, axis=1),
-                         np.linalg.norm(d1*l2 + d2*l1, axis=1))
-    angles2 = np.arctan2(np.linalg.norm(d2*l3 - d3*l2, axis=1),
-                         np.linalg.norm(d2*l3 + d3*l2, axis=1))
+    angles0 = 2 * np.arctan2(np.linalg.norm(d1*l3 + d3*l1, axis=1),
+                             np.linalg.norm(d1*l3 - d3*l1, axis=1))
+    angles1 = 2 * np.arctan2(np.linalg.norm(d1*l2 + d2*l1, axis=1),
+                             np.linalg.norm(d1*l2 - d2*l1, axis=1))
+    angles2 = 2 * np.arctan2(np.linalg.norm(d2*l3 + d3*l2, axis=1),
+                             np.linalg.norm(d2*l3 - d3*l2, axis=1))
     return np.column_stack([angles0, angles1, angles2])
 
 def vertex_normals(m, method="average", normalize=True):
@@ -73,25 +73,24 @@ def vertex_normals(m, method="average", normalize=True):
             f_normals *= den0.reshape(-1,1)
             f_normals0 = f_normals1 = f_normals2 = f_normals
         else:
-            angles = face_angles(m)
             f_normals = m.normals
+            angles = face_angles(m)
             den0 = angles[:,0]
             f_normals0 = f_normals * den0.reshape(-1,1)
             den1 = angles[:,1]
             f_normals1 = f_normals * den1.reshape(-1,1)
             den2 = angles[:,2]
             f_normals2 = f_normals * den2.reshape(-1,1)
-        v_normals[m.faces[:,0]] += f_normals0
-        v_normals[m.faces[:,1]] += f_normals1
-        v_normals[m.faces[:,2]] += f_normals2
+        np.add.at(v_normals, m.faces[:,0], f_normals0)
+        np.add.at(v_normals, m.faces[:,1], f_normals1)
+        np.add.at(v_normals, m.faces[:,2], f_normals2)
         if normalize:
             v_normals /= np.linalg.norm(v_normals, axis=1).reshape(-1,1)
         else:
             denoms = np.zeros(m.vertices.shape[0])
-            denoms[m.faces[:,0]] += den0
-            denoms[m.faces[:,1]] += den1
-            denoms[m.faces[:,2]] += den2
-            import ipdb;ipdb.set_trace()
+            np.add.at(denoms, m.faces[:,0], den0)
+            np.add.at(denoms, m.faces[:,1], den1)
+            np.add.at(denoms, m.faces[:,2], den2)
             v_normals /= denoms.reshape(-1,1)
     else:
         raise NotImplemented("vertex normals method '" + method + "' not implemented")
