@@ -53,17 +53,15 @@ def view_pyglet(m, *args, **kwargs):
     specular = [0.0, 0.0, 0.0, 1.0]
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 50
-
     material = pyglet.model.Material("custom", diffuse, ambient, specular, emission, shininess)
     group = pyglet.model.MaterialGroup(material=material)
 
     # Create a Material and Group for Edges
-    diffuse = [0.5, 1.0, 1.0, 1.0]
+    diffuse = [0.0, 0.0, 0.0, 0.0]
     ambient = [0.5, 1.0, 1.0, 1.0]
     specular = [0.0, 0.0, 0.0, 0.0]
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 50
-    #
     material = pyglet.model.Material("custom2", diffuse, ambient, specular, emission, shininess)
     group2 = pyglet.model.MaterialGroup(material=material)
 
