@@ -185,3 +185,21 @@ def write_binary_stl(m, fname, header=b"exported from py3do"):
             face_b = facet_str.pack(*m.normals[i], *fv[0], *fv[1], *fv[2])
             f.write(face_b)
             f.write(attr_b)
+
+def read_stl(fname):
+    """Read binary or ascii STL.
+
+    Type is automatically determined."""
+    # determine file type
+    header = None
+    if hasattr(fname, 'read'):
+        f_ctx = nullcontext(fname)
+    else:
+        f_ctx = open(fname, 'rb')
+    with f_ctx as f:
+        header = _read_n_bytes(f, 6)
+    if header.lower() == b"solid ":
+        m = read_ascii_stl(fname)
+    else:
+        m = read_binary_stl(fname)
+    return m
