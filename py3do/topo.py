@@ -9,6 +9,12 @@ def repeated_face_vertices(m):
       (m.faces[:,1] == m.faces[:,2])
     return np.nonzero(mask)[0]
 
+def unused_vertices(m):
+    """Find vertices not in any faces."""
+    used_vertices = np.unique(m.faces.ravel())
+    unused_vertices = np.setdiff1d(np.arange(m.vertices.shape[0]), used_vertices)
+    return unused_vertices
+
 class EdgeToFaceMap:
     """Stores faces adjacent to each edge.
 
