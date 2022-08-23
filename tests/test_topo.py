@@ -5,6 +5,7 @@ import numpy as np
 from py3do.primitives import cube, cone_pipe
 
 from py3do.topo import repeated_face_vertices
+from py3do.topo import unused_vertices
 from py3do.topo import EdgeToFaceMap
 
 def test_repeated_vertices_good():
@@ -20,6 +21,16 @@ def test_repeated_vertices_bad():
     c = cube()
     rvs = repeated_face_vertices(c)
     assert len(rvs) == 0
+
+def test_unused_vertices_good():
+    c = cube()
+    uvs = unused_vertices(c)
+    assert len(uvs) == 0
+def test_unused_vertices_bad():
+    c = cube()
+    c.vertices = np.vstack([c.vertices, [[1, 2, 3]]])
+    uvs = unused_vertices(c)
+    assert len(uvs) == 1
 
 def test_edge_face_map():
     c = cube()

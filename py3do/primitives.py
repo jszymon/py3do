@@ -49,7 +49,7 @@ def cylinder_faces(bottom_idxs, top_idxs):
     nb = len(bottom_idxs)
     nt = len(top_idxs)
     if nt == nb == 1:  # no edges, degenerate cylinder
-        return np.empty((0, 3), dtype=np.int)
+        return np.empty((0, 3), dtype=int)
     if nb == 1 and nt > 1:
         bi = bottom_idxs[0]
         f = [(bi, top_idxs[(j+1) % nt], top_idxs[j]) for j in range(nt)]
@@ -62,7 +62,7 @@ def cylinder_faces(bottom_idxs, top_idxs):
         f2 = [(top_idxs[j], bottom_idxs[j], top_idxs[(j+1) % nt])
                                   for j in range(nt)]
         f = f1 + f2
-    return np.array(f, dtype=np.int)
+    return np.array(f, dtype=int)
 
 def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
                   connect_top_bottom=False):
@@ -106,7 +106,7 @@ def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
         fcs.append(new_fs)
         
     v = np.vstack([np.empty((0, 3), dtype=np.float64)] + vs)
-    f = np.vstack([np.empty((0, 3), dtype=np.int)] + fcs)
+    f = np.vstack([np.empty((0, 3), dtype=int)] + fcs)
     m = Mesh(v, f)
     m.normals, _ = normals_cross(m)
     return m
