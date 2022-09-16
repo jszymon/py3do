@@ -20,6 +20,7 @@ class UnionFind:
         self.n = self.n-1
         i = self.find(i)
         self.parents[j] = i
+        return i
     def sets(self):
         """Return the set each element belongs numbered consecutively
         from 0."""
@@ -29,8 +30,7 @@ class UnionFind:
         """Return a list of arrays of elements of each set."""
         set_elems = []
         sets = self.sets()
-        #import pdb;pdb.set_trace()
-        # TODO: speedup
+        # split array into lists
         elem_idx = np.argsort(sets)
         sets = sets[elem_idx]
         set_idx = np.unique(sets, return_index=True)[1]
