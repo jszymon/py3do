@@ -10,6 +10,7 @@ from .primitives import cube
 from .primitives import circle
 from .primitives import cone_pipe
 from .binary_relations import is_isomorphic
+from .mesh_ops import split_mesh
 from . import vis
 from . import io
 from . import gcode

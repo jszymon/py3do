@@ -88,8 +88,8 @@ class EdgeToFaceMap:
         return ret
 
 def connected_components(m):
-    """Split mesh into connected components.  Only face information is
-    used, overlapping is not taken into account.
+    """Detect connected components.  Only face information is used,
+    overlapping is not taken into account.
 
     returns the number of connected components and two lists of
     integer arrays of respectively vertex and face indices of each
