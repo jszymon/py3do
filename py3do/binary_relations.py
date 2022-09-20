@@ -26,4 +26,7 @@ def is_isomorphic(m1, m2, tol=0):
     else:
         raise NotImplemented("is_isomorphic: nonzero tolerance not implemented")
     mapped_faces = vmap[m2.faces]
-    return np.array_equal(m1.faces, mapped_faces)
+    # sort faces lexicographically
+    i1 = np.lexsort(m1.faces.T)
+    i2 = np.lexsort(mapped_faces.T)
+    return np.array_equal(m1.faces[i1], mapped_faces[i2])
