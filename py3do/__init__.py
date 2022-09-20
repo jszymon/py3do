@@ -4,6 +4,8 @@ from .mesh import Mesh
 from .geom import normals_Newell
 from .geom import normals_cross
 from .topo import repeated_face_vertices
+from .topo import EdgeToFaceMap
+from .topo import connected_components
 from .primitives import cube
 from .primitives import circle
 from .primitives import cone_pipe

@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from .utils import UnionFind, arg_split
+
 def repeated_face_vertices(m):
     """Check if any triangle has repeated vertices."""
     mask = (m.faces[:,0] == m.faces[:,1]) |\
@@ -84,3 +86,25 @@ class EdgeToFaceMap:
             idx = self.unique_edges_ptr[k]
             ret[e] = list(self.edges_rec[idx:idx+nf]["face"])
         return ret
+
+def connected_components(m):
+    """Split mesh into connected components.  Only face information is
+    used, overlapping is not taken into account.
+
+    returns the number of connected components and two lists of
+    integer arrays of respectively vertex and face indices of each
+    component.
+
+    """
+    n = m.vertices.shape[0]
+    uf = UnionFind(n)
+    for (x,y,z) in m.faces:
+        uf.union(x, y)
+        uf.union(x, z)
+        uf.union(y, z)
+        if uf.n == 1:
+            break
+    nc = uf.n
+    vert_components = uf.sets()
+    face_components = vert_components[m.faces[:,0]]
+    return nc, arg_split(vert_components, nc), arg_split(face_components, nc)
