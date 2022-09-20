@@ -18,9 +18,11 @@ class UnionFind:
             self.parents[i] = ip
         return ip
     def union(self, i, j):
-        self.n = self.n-1
         i = self.find(i)
-        self.parents[j] = i
+        j = self.find(j)
+        if i != j:
+            self.n = self.n-1
+            self.parents[j] = i
         return i
     def sets(self):
         """Return the set each element belongs numbered consecutively
