@@ -1,18 +1,22 @@
 import numpy as np
 
-import pyglet
-from pyglet.gl import *
+try:
+    import pyglet
+    from pyglet.gl import *
+    have_pyglet = True
+except:
+    have_pyglet = False
 
-
-class ProjectionOrtho(pyglet.window.Projection):
-    def set(self, window_width, window_height, viewport_width, viewport_height):
-        glViewport(0, 0, max(1, viewport_width), max(1, viewport_height))
-        glMatrixMode(gl.GL_PROJECTION)
-        glLoadIdentity()
-        ww = max(1.0, window_width)
-        wh = max(1.0, window_height)
-        glOrtho(-ww/2, ww/2, -wh/2, wh/2, -10000.0, 1e5)
-        glMatrixMode(GL_MODELVIEW)
+if have_pyglet:
+    class ProjectionOrtho(pyglet.window.Projection):
+        def set(self, window_width, window_height, viewport_width, viewport_height):
+            glViewport(0, 0, max(1, viewport_width), max(1, viewport_height))
+            glMatrixMode(gl.GL_PROJECTION)
+            glLoadIdentity()
+            ww = max(1.0, window_width)
+            wh = max(1.0, window_height)
+            glOrtho(-ww/2, ww/2, -wh/2, wh/2, -10000.0, 1e5)
+            glMatrixMode(GL_MODELVIEW)
 
 scale = 1.0
 rot_z = 0.0
@@ -20,6 +24,8 @@ rot_x = 0.0
 wireframe = True
 
 def view_pyglet(m, *args, **kwargs):
+    if not have_pyglet:
+        raise RuntimeError("Pyglet not available")
     global scale, rot_z, rot_x
     # Direct OpenGL commands to this window.
     try:
