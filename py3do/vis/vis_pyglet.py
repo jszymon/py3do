@@ -23,7 +23,18 @@ rot_z = 0.0
 rot_x = 0.0
 wireframe = True
 
-def view_pyglet(m, *args, **kwargs):
+_point_mark = np.array([
+[0,0,1], [1,0,0], [0,1,0],
+[0,0,1], [0,1,0], [-1,0,0],
+[0,0,1], [-1,0,0], [0,-1,0],
+[0,0,1], [0,-1,0], [1,0,0],
+[0,0,-1], [1,0,0], [0,1,0],
+[0,0,-1], [0,1,0], [-1,0,0],
+[0,0,-1], [-1,0,0], [0,-1,0],
+[0,0,-1], [0,-1,0], [1,0,0],
+    ], dtype=np.float)[:,[0,2,1]]
+
+def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwargs):
     if not have_pyglet:
         raise RuntimeError("Pyglet not available")
     global scale, rot_z, rot_x
@@ -72,6 +83,15 @@ def view_pyglet(m, *args, **kwargs):
     material = pyglet.model.Material("custom2", diffuse, ambient, specular, emission, shininess)
     group2 = pyglet.model.MaterialGroup(material=material)
 
+    # Create a Material and Group for marked vertices
+    diffuse = [1.0, 0.0, 0.0, 1.0]
+    ambient = [1.0, 0.0, 0.0, 1.0]
+    specular = [0.0, 0.0, 0.0, 0.0]
+    emission = [0.0, 0.0, 0.0, 1.0]
+    shininess = 1.0
+    material = pyglet.model.Material("custom3", diffuse, ambient, specular, emission, shininess)
+    group_vertex_mark = pyglet.model.MaterialGroup(material=material)
+
     # prepare UI
     label = pyglet.text.Label('Wireframe',
                               #anchor_x="center",
@@ -88,7 +108,8 @@ def view_pyglet(m, *args, **kwargs):
     vs = m.vertices[:, [0,2,1]]
     normals = m.normals[:, [0,2,1]]
     fvs = vs[m.faces]  # vertices of faces
-    fvs -= vs.mean(axis=0)
+    center = vs.mean(axis=0) 
+    fvs -= center
 
     fvs = fvs.ravel()
     n = len(fvs) // 3
@@ -99,6 +120,19 @@ def view_pyglet(m, *args, **kwargs):
                           ('v3f', fvs), #('n3f', normals.repeat(3,0).ravel()),
                           ('c4f', n * (0.0, 0, 0, 1.0)),
                           )
+    # add vertex marks
+    if marked_vertices is not None:
+        marked_vertices = np.asarray(marked_vertices)
+        assert len(marked_vertices.shape) == 1
+        mv = m.vertices[marked_vertices,:][:,[0,2,1]] - center
+        mv = mv.repeat(_point_mark.shape[0], axis=0) \
+            + np.tile(_point_mark*vertex_marker_size,
+                      (marked_vertices.shape[0],1))
+        batch_model.add(mv.shape[0], GL_TRIANGLES, group_vertex_mark,
+                        ('v3f', mv.ravel()),
+                        ('n3f', np.tile(_point_mark,
+                                        (marked_vertices.shape[0],1)).ravel()),
+                        )
 
     @window.event
     def on_draw():
