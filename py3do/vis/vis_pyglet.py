@@ -35,23 +35,24 @@ def view_pyglet(m, *args, **kwargs):
     except pyglet.window.NoSuchConfigException:
         # Fall back to no multisampling for old hardware
         window = pyglet.window.Window(resizable=True)
-
-    label = pyglet.text.Label('Wireframe',
-                          #font_name='Times New Roman',
-                          #font_size=36,
-                          x=10, y=10)
-    
     window.projection = ProjectionOrtho()  # orthographic
     #window.projection = pyglet.window.Projection3D()  # perspective
-    batch = pyglet.graphics.Batch()
-    batch_edge = pyglet.graphics.Batch()
+
     print("OpenGL Context: {}".format(window.context.get_info().version))
 
-    # each vertex is repeated for each triangle to get 'faceted' look
-    vs = m.vertices[:, [0,2,1]]
-    normals = m.normals[:, [0,2,1]]
-    fvs = vs[m.faces]  # vertices of faces
-    fvs -= vs.mean(axis=0)
+    
+    batch_ui = pyglet.graphics.Batch()
+    batch_model = pyglet.graphics.Batch()
+    batch_edge = pyglet.graphics.Batch()
+    
+    # Create a Material and Group for UI
+    diffuse = [1.0, 1.0, 1.0, 1.0]
+    ambient = [1.0, 1.0, 1.0, 1.0]
+    specular = [0.0, 0.0, 0.0, 0.0]
+    emission = [0.0, 0.0, 0.0, 1.0]
+    shininess = 50
+    material = pyglet.model.Material("custom_ui", diffuse, ambient, specular, emission, shininess)
+    group_ui = pyglet.model.MaterialGroup(material=material)
 
     # Create a Material and Group for the Model
     diffuse = [0.5, 0.3, 0.0, 1.0]
@@ -71,9 +72,27 @@ def view_pyglet(m, *args, **kwargs):
     material = pyglet.model.Material("custom2", diffuse, ambient, specular, emission, shininess)
     group2 = pyglet.model.MaterialGroup(material=material)
 
+    # prepare UI
+    label = pyglet.text.Label('Wireframe',
+                              #anchor_x="center",
+                              #font_name='Times New Roman',
+                              #font_size=36,
+                              x=10, y=10,
+                              batch=batch_ui, group=group_ui)
+    #labelb = pyglet.shapes.Line(10, 10, 150,10, width=5,
+    #                            batch=batch_ui, group=group_ui)
+    
+    # prepare model and edges
+    
+    # each vertex is repeated for each triangle to get 'faceted' look
+    vs = m.vertices[:, [0,2,1]]
+    normals = m.normals[:, [0,2,1]]
+    fvs = vs[m.faces]  # vertices of faces
+    fvs -= vs.mean(axis=0)
+
     fvs = fvs.ravel()
     n = len(fvs) // 3
-    batch.add(n, GL_TRIANGLES, group,
+    batch_model.add(n, GL_TRIANGLES, group,
                           ('v3f', fvs), ('n3f', normals.repeat(3,0).ravel()),
                           )
     batch_edge.add(n, GL_TRIANGLES, group2,
@@ -95,7 +114,7 @@ def view_pyglet(m, *args, **kwargs):
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         if wireframe:
             glEnable(GL_POLYGON_OFFSET_FILL)
-        batch.draw()
+        batch_model.draw()
         if wireframe:
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
             glDisable(GL_POLYGON_OFFSET_FILL)
@@ -105,7 +124,7 @@ def view_pyglet(m, *args, **kwargs):
         glPushMatrix()
         glLoadIdentity()
         glTranslatef(-window.width/2,0,10000) # = projection's near val
-        label.draw()
+        batch_ui.draw()
         glPopMatrix()
     @window.event
     def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
@@ -153,6 +172,7 @@ def view_pyglet(m, *args, **kwargs):
     glLightfv(GL_LIGHT0, GL_DIFFUSE, vec(1.0, 1.0, 1.0, 1.0))
     #glLightfv(GL_LIGHT0, GL_SPECULAR, vec(0.7, 0.7, 0.7, 1))
     glLightfv(GL_LIGHT0, GL_POSITION, vec(0.0, 0.0, 1.0, 0.0))
+    glLightfv(GL_LIGHT1, GL_AMBIENT, vec(1.0, 1.0, 1.0, 1))
     glEnable(GL_LIGHT0)
     glEnable(GL_LIGHTING)
     
