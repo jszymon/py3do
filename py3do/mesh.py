@@ -44,7 +44,7 @@ class Mesh:
         if len(self.faces.shape) != 2:
             raise RuntimeError("faces must be a 2d array")
         if self.faces.shape[1] != 3:
-            raise RuntimeError("faces must have 3 coordinates")
+            raise RuntimeError("faces must have 3 vertices")
         if (self.faces < 0).any():
             raise RuntimeError("Negative indices in faces")
         n_vert = self.vertices.shape[0]
