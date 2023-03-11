@@ -4,7 +4,7 @@ import numpy as np
 
 from .geom import normals_cross
 
-def _as_3col(x, fl=True):
+def _as_3col(x, *, fl=True):
     """Convert x to 3 column array.
 
     Works for empty lists"""
@@ -27,13 +27,22 @@ def _check_points_array(x, name):
         raise RuntimeError("Inf or Nan in " + name)
 
 class Mesh:
-    def __init__(self, vertices, faces, normals=None):
+    def __init__(self, vertices, faces, /, normals=None, *,
+                 fix_nan_normals=False):
+        """Create a mesh.
+
+        Setting fix_nan_normals=True replaces Nan's in normals with
+        zeros.  Useful for meshes with bad normals, e.g. collinear
+        triangles.
+        """
         self.vertices = _as_3col(vertices, fl=True)
         self.faces = _as_3col(faces, fl=False)
         if normals is not None:
             self.normals = _as_3col(normals, fl=True)
         else:
-            self.normals = None
+            self.normals, _ = normals_cross(self)
+        if fix_nan_normals:
+            self.normals[np.isnan(self.normals)] = 0
         self.check_faces_and_vertices()
     def check_faces_and_vertices(self):
         """Basic checks of consistency of faces and vertices."""
@@ -50,12 +59,10 @@ class Mesh:
         n_vert = self.vertices.shape[0]
         if (self.faces >= n_vert).any():
             raise RuntimeError("faces indices out of bounds")
-        if self.normals is not None:
-            _check_points_array(self.normals, "normals")
-        else:
-            self.normals, _ = normals_cross(self)
+        _check_points_array(self.normals, "normals")
 
-    def round_coords(self, decimals, inplace=False, merge=False):
+
+    def round_coords(self, decimals, *, inplace=False, merge=False):
         """Round coordinates of all points.
 
         merge identical points if requested."""

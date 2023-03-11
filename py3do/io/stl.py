@@ -45,7 +45,7 @@ def _vertex_list_from_map(vertex_map):
     vertices = [i[0] for i in items]
     return vertices
 
-def read_ascii_stl(fname):
+def read_ascii_stl(fname, *, fix_nan_normals=False):
     vertex_map = defaultdict(count().__next__)
     faces = []
     normals = []
@@ -88,7 +88,7 @@ def read_ascii_stl(fname):
             if l != "":
                 raise RuntimeError("Content after 'endsolid'")
     vertices = _vertex_list_from_map(vertex_map)
-    m = Mesh(vertices, faces, normals)
+    m = Mesh(vertices, faces, normals, fix_nan_normals=fix_nan_normals)
     return m
 
 def _vector_to_str(v):
@@ -125,7 +125,7 @@ def _read_n_bytes(f, n):
     if len(b) != n:
         raise RuntimeError("Unexpected end of file")
     return b
-def read_binary_stl(fname):
+def read_binary_stl(fname, *, fix_nan_normals=False):
     vertex_map = defaultdict(count().__next__)
     faces = []
     normals = []
@@ -157,7 +157,7 @@ def read_binary_stl(fname):
         if len(f.read(1)) != 0:
             raise RuntimeError("Expected end of file")
     vertices = _vertex_list_from_map(vertex_map)
-    m = Mesh(vertices, faces, normals)
+    m = Mesh(vertices, faces, normals, fix_nan_normals=fix_nan_normals)
     return m
 
 def write_binary_stl(m, fname, header=b"exported from py3do"):
@@ -186,10 +186,13 @@ def write_binary_stl(m, fname, header=b"exported from py3do"):
             f.write(face_b)
             f.write(attr_b)
 
-def read_stl(fname):
+def read_stl(fname, *, fix_nan_normals=False):
     """Read binary or ascii STL.
 
-    Type is automatically determined."""
+    Type is automatically determined.  Setting fix_nan_normals=True
+    allows for reading files with e.g. collinear triangles (sets their
+    normals to 0).
+    """
     # determine file type
     header = None
     if hasattr(fname, 'read'):
@@ -199,7 +202,7 @@ def read_stl(fname):
     with f_ctx as f:
         header = _read_n_bytes(f, 6)
     if header.lower() == b"solid ":
-        m = read_ascii_stl(fname)
+        m = read_ascii_stl(fname, fix_nan_normals=fix_nan_normals)
     else:
-        m = read_binary_stl(fname)
+        m = read_binary_stl(fname, fix_nan_normals=fix_nan_normals)
     return m
