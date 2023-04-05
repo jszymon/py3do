@@ -9,7 +9,7 @@ def _as_3col(x, *, fl=True):
 
     Works for empty lists"""
     if len(x) == 0:
-        return np.empty((0,3), dtype=np.float64 if fl else np.uint)
+        return np.empty((0,3), dtype=np.double if fl else np.uint)
     if fl:
         x = np.asfarray(x)
     else:

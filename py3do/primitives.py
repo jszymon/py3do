@@ -105,7 +105,7 @@ def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
                                     range(len(vs[0])))
         fcs.append(new_fs)
         
-    v = np.vstack([np.empty((0, 3), dtype=np.float64)] + vs)
+    v = np.vstack([np.empty((0, 3), dtype=np.double)] + vs)
     f = np.vstack([np.empty((0, 3), dtype=int)] + fcs)
     m = Mesh(v, f)
     m.normals, _ = normals_cross(m)

@@ -32,7 +32,7 @@ _point_mark = np.array([
 [0,0,-1], [0,1,0], [-1,0,0],
 [0,0,-1], [-1,0,0], [0,-1,0],
 [0,0,-1], [0,-1,0], [1,0,0],
-    ], dtype=np.float)[:,[0,2,1]]
+    ], dtype=np.double)[:,[0,2,1]]
 
 def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwargs):
     if not have_pyglet:
