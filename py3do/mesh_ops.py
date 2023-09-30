@@ -7,7 +7,7 @@ from .topo import connected_components
 
 
 def split_mesh(m):
-    """Split mesh into connected component.  Returns each component as a
+    """Split mesh into connected components.  Returns each component as a
     mesh.
 
     uses connected_components and renumbers face vertices
