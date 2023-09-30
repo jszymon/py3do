@@ -3,6 +3,7 @@
 from .mesh import Mesh
 from .geom import normals_Newell
 from .geom import normals_cross
+from .geom import vertex_normals
 from .topo import repeated_face_vertices
 from .topo import EdgeToFaceMap
 from .topo import connected_components
