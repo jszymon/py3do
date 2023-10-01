@@ -72,7 +72,7 @@ def vertex_normals(m, method="average", normalize=True):
             den0 = den1 = den2 = areas
             f_normals *= den0.reshape(-1,1)
             f_normals0 = f_normals1 = f_normals2 = f_normals
-        else:
+        else: # angle weighted
             f_normals = m.normals
             angles = face_angles(m)
             den0 = angles[:,0]
