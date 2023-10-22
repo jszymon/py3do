@@ -95,3 +95,13 @@ def vertex_normals(m, method="average", normalize=True):
     else:
         raise NotImplemented("vertex normals method '" + method + "' not implemented")
     return v_normals
+
+def volume(m):
+    """Volume of mesh m.
+
+    For unbounded polytopes (with flipped normals) volume will be
+    negative."""
+    n, a = normals_cross(m)
+    n *= a.reshape(-1,1)
+    vs = m.vertices[m.faces[:,0]] # coords of first vertex of every face
+    return np.vdot(vs, n) / 3
