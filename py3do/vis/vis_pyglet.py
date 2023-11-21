@@ -2,21 +2,12 @@ import numpy as np
 
 try:
     import pyglet
+    import pyglet.math
     from pyglet.gl import *
     have_pyglet = True
 except:
     have_pyglet = False
 
-if have_pyglet:
-    class ProjectionOrtho(pyglet.window.Projection):
-        def set(self, window_width, window_height, viewport_width, viewport_height):
-            glViewport(0, 0, max(1, viewport_width), max(1, viewport_height))
-            glMatrixMode(gl.GL_PROJECTION)
-            glLoadIdentity()
-            ww = max(1.0, window_width)
-            wh = max(1.0, window_height)
-            glOrtho(-ww/2, ww/2, -wh/2, wh/2, -10000.0, 1e5)
-            glMatrixMode(GL_MODELVIEW)
 
 scale = 1.0
 rot_z = 0.0
@@ -38,6 +29,7 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     if not have_pyglet:
         raise RuntimeError("Pyglet not available")
     global scale, rot_z, rot_x
+    
     # Direct OpenGL commands to this window.
     try:
         # Try and create a window with multisampling (antialiasing)
@@ -46,16 +38,97 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     except pyglet.window.NoSuchConfigException:
         # Fall back to no multisampling for old hardware
         window = pyglet.window.Window(resizable=True)
-    window.projection = ProjectionOrtho()  # orthographic
-    #window.projection = pyglet.window.Projection3D()  # perspective
 
     print("OpenGL Context: {}".format(window.context.get_info().version))
 
+    # create shader programs
+    vertex_source = """#version 330 core
+    in vec3 position;
+    in vec3 normal;
+    in vec4 colors;
+    out vec4 vertex_colors;
+    out vec3 vertex_normal;
+    out vec3 vertex_position;
+
+    uniform WindowBlock
+    {
+        mat4 projection;
+        mat4 view;
+    } window;
+
+    uniform mat4 model;
+
+    void main()
+    {
+        gl_Position = window.projection * model * vec4(position, 1);
+        mat3 normal_matrix = transpose(inverse(mat3(model)));
+        vertex_normal = normal_matrix * normal;
+        vertex_colors = colors;
+        vertex_position = (model * vec4(position, 1)).xyz;
+    }
+    """
+
+    fragment_source = """#version 330 core
+    in vec4 vertex_colors;
+    in vec3 vertex_normal;
+    in vec3 vertex_position;
+    out vec4 final_color;
+
+    void main()
+    {
+        vec3 light_position = vec3(0.0, 0.0, 1000.0);
+        float l = dot(normalize(-light_position), normalize(vertex_normal));
+        l += 0.1; // ambient
+        final_color = vec4(0.5, 0.3, 0.1, 1.0) * l * 1.5;
+    }
+    """
+
+    vertex_source_edge = """#version 330 core
+    in vec3 position;
+    out vec3 vertex_position;
+
+    uniform WindowBlock
+    {
+        mat4 projection;
+        mat4 view;
+    } window;
+
+    uniform mat4 model;
+
+    void main()
+    {
+        gl_Position = window.projection * model * vec4(position, 1);
+        vertex_position = position.xyz;
+    }
+    """
+    fragment_source_edge = """#version 330 core
+    in vec3 vertex_position;
+
+    void main()
+    {
+        gl_FragColor = vec4(0.5, 1.0, 1.0, 1.0);
+    }
+    """
+    from pyglet.graphics.shader import Shader, ShaderProgram
+
+    vert_shader = Shader(vertex_source, 'vertex')
+    frag_shader = Shader(fragment_source, 'fragment')
+    program = ShaderProgram(vert_shader, frag_shader)
+    vert_shader_edge = Shader(vertex_source_edge, 'vertex')
+    frag_shader_edge = Shader(fragment_source_edge, 'fragment')
+    program_edge = ShaderProgram(vert_shader_edge, frag_shader_edge)
     
     batch_ui = pyglet.graphics.Batch()
     batch_model = pyglet.graphics.Batch()
     batch_edge = pyglet.graphics.Batch()
-    
+
+    class MaterialGroup(pyglet.graphics.ShaderGroup):
+        """Our own material group.
+
+        pyglet's class is incomplete."""
+        def __init__(self, material, program):
+            super().__init__(program)
+            self.material = material
     # Create a Material and Group for UI
     diffuse = [1.0, 1.0, 1.0, 1.0]
     ambient = [1.0, 1.0, 1.0, 1.0]
@@ -63,7 +136,7 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 50
     material = pyglet.model.Material("custom_ui", diffuse, ambient, specular, emission, shininess)
-    group_ui = pyglet.model.MaterialGroup(material=material)
+    group_ui = MaterialGroup(material, program)
 
     # Create a Material and Group for the Model
     diffuse = [0.5, 0.3, 0.0, 1.0]
@@ -72,7 +145,7 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 50
     material = pyglet.model.Material("custom", diffuse, ambient, specular, emission, shininess)
-    group = pyglet.model.MaterialGroup(material=material)
+    group = MaterialGroup(material, program)
 
     # Create a Material and Group for Edges
     diffuse = [0.0, 0.0, 0.0, 0.0]
@@ -81,7 +154,7 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 50
     material = pyglet.model.Material("custom2", diffuse, ambient, specular, emission, shininess)
-    group2 = pyglet.model.MaterialGroup(material=material)
+    group2 = MaterialGroup(material, program_edge)
 
     # Create a Material and Group for marked vertices
     diffuse = [1.0, 0.0, 0.0, 1.0]
@@ -90,7 +163,7 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     emission = [0.0, 0.0, 0.0, 1.0]
     shininess = 1.0
     material = pyglet.model.Material("custom3", diffuse, ambient, specular, emission, shininess)
-    group_vertex_mark = pyglet.model.MaterialGroup(material=material)
+    group_vertex_mark = MaterialGroup(material, program)
 
     # prepare UI
     label = pyglet.text.Label('Wireframe',
@@ -113,13 +186,10 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
 
     fvs = fvs.ravel()
     n = len(fvs) // 3
-    batch_model.add(n, GL_TRIANGLES, group,
-                          ('v3f', fvs), ('n3f', normals.repeat(3,0).ravel()),
-                          )
-    batch_edge.add(n, GL_TRIANGLES, group2,
-                          ('v3f', fvs), #('n3f', normals.repeat(3,0).ravel()),
-                          ('c4f', n * (0.0, 0, 0, 1.0)),
-                          )
+    vertex_list1 = program.vertex_list(n, GL_TRIANGLES, batch_model, group,
+                                         position=('f', fvs), normal=('f', normals.repeat(3,0).ravel()))
+    vertex_list2 = program_edge.vertex_list(n, GL_TRIANGLES, batch_edge, group2,
+                                       position=('f', fvs))
     # add vertex marks
     if marked_vertices is not None:
         marked_vertices = np.asarray(marked_vertices)
@@ -137,11 +207,13 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     @window.event
     def on_draw():
         global rot_x, rot_z, scale
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        glRotatef(rot_x, 1, 0, 0)
-        glRotatef(rot_z, 0, 1, 0)
-        glScalef(scale, scale, scale)
+        model_tr = pyglet.math.Mat4()
+        model_tr = model_tr.scale((scale,scale,scale))
+        model_tr = model_tr.rotate(rot_x, (1,0,0))
+        model_tr = model_tr.rotate(rot_z, (0,1,0))
+        program['model'] = model_tr
+        program_edge['model'] = model_tr
+        
         window.clear()
         # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
         glPolygonOffset(1,1)
@@ -155,16 +227,36 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
             batch_edge.draw()
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
         # draw UI
-        glPushMatrix()
-        glLoadIdentity()
-        glTranslatef(-window.width/2,0,10000) # = projection's near val
-        batch_ui.draw()
-        glPopMatrix()
+        ### glPushMatrix()
+        ### glLoadIdentity()
+        ### glTranslatef(-window.width/2,0,10000) # = projection's near val
+        ### batch_ui.draw()
+        ### glPopMatrix()
+    @window.event
+    def on_resize(width, height):
+        w, h = window.get_framebuffer_size()
+        s = min(w, h)
+        offset_x = max(0, (w-h)//2)
+        offset_y = max(0, (h-w)//2)
+        glViewport(offset_x, offset_y, s, s)
+        s = max(w, h)
+        offset_x = min(0, (w-h)//2)
+        offset_y = min(0, (h-w)//2)
+        glViewport(offset_x, offset_y, s, s)
+        proj = pyglet.math.Mat4.orthogonal_projection(-1, 1,
+                                                      -1, 1,
+                                                      1e3, -1e3)
+        window.projection = proj
+        look_at = pyglet.math.Mat4.look_at(pyglet.math.Vec3(0, 0, -100),
+                                           pyglet.math.Vec3(0, 0, 0),
+                                           pyglet.math.Vec3(0, 1, 0))
+        window.view = look_at
+        return pyglet.event.EVENT_HANDLED
     @window.event
     def on_mouse_drag(x, y, dx, dy, buttons, modifiers):
         global rot_z, rot_x
-        rot_x -= dy / 6
-        rot_z += dx / 3
+        rot_x += dy / 600
+        rot_z -= dx / 300
     @window.event
     def on_mouse_scroll(x, y, scroll_x, scroll_y):
         global scale
@@ -177,13 +269,13 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     def on_text_motion(motion):
         global rot_x, rot_z, scale
         if motion == pyglet.window.key.MOTION_LEFT:
-            rot_z += -5
+            rot_z += -0.1
         elif motion == pyglet.window.key.MOTION_RIGHT:
-            rot_z += 5
+            rot_z += 0.1
         elif motion == pyglet.window.key.MOTION_UP:
-            rot_x += -5
+            rot_x += -0.1
         elif motion == pyglet.window.key.MOTION_DOWN:
-            rot_x += 5
+            rot_x += 0.1
         elif motion == pyglet.window.key.MOTION_NEXT_PAGE:
             scale *= 0.9
         elif motion == pyglet.window.key.MOTION_PREVIOUS_PAGE:
@@ -201,18 +293,6 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
 
     glEnable(GL_MULTISAMPLE_ARB)
     glEnable(GL_DEPTH_TEST)
-    glEnable(GL_NORMALIZE)  # FIX LIGHTING WITH glScale!!!!
-    glLightfv(GL_LIGHT0, GL_AMBIENT, vec(0.3, 0.3, 0.3, 1))
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, vec(1.0, 1.0, 1.0, 1.0))
-    #glLightfv(GL_LIGHT0, GL_SPECULAR, vec(0.7, 0.7, 0.7, 1))
-    glLightfv(GL_LIGHT0, GL_POSITION, vec(0.0, 0.0, 1.0, 0.0))
-    glLightfv(GL_LIGHT1, GL_AMBIENT, vec(1.0, 1.0, 1.0, 1))
-    glEnable(GL_LIGHT0)
-    glEnable(GL_LIGHTING)
-    
-    gluLookAt(0, 0, -100,
-              0, 0, 0,
-              0, 1, 0, )
-    #pyglet.clock.schedule_interval(update, 1/60)
+    pyglet.clock.schedule_interval(update, 1/60)
     pyglet.app.run()
 
