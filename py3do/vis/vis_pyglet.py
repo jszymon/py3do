@@ -3,7 +3,7 @@ import numpy as np
 try:
     import pyglet
     import pyglet.math
-    from pyglet.gl import *
+    import pyglet.gl as gl
     have_pyglet = True
 except:
     have_pyglet = False
@@ -33,7 +33,7 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     # Direct OpenGL commands to this window.
     try:
         # Try and create a window with multisampling (antialiasing)
-        config = Config(sample_buffers=1, samples=4, depth_size=16, double_buffer=True)
+        config = gl.Config(sample_buffers=1, samples=4, depth_size=16, double_buffer=True)
         window = pyglet.window.Window(width=960, height=540, resizable=True, config=config)
     except pyglet.window.NoSuchConfigException:
         # Fall back to no multisampling for old hardware
@@ -78,8 +78,8 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     {
         vec3 light_position = vec3(0.0, 0.0, 1000.0);
         float l = dot(normalize(-light_position), normalize(vertex_normal));
-        l += 0.1; // ambient
-        final_color = vec4(0.5, 0.3, 0.1, 1.0) * l * 1.5;
+        l += 0.5; // ambient
+        final_color = vec4(0.5, 0.3, 0.1, 1.0) * l * 1.3;
     }
     """
 
@@ -186,9 +186,9 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
 
     fvs = fvs.ravel()
     n = len(fvs) // 3
-    vertex_list1 = program.vertex_list(n, GL_TRIANGLES, batch_model, group,
+    vertex_list1 = program.vertex_list(n, gl.GL_TRIANGLES, batch_model, group,
                                          position=('f', fvs), normal=('f', normals.repeat(3,0).ravel()))
-    vertex_list2 = program_edge.vertex_list(n, GL_TRIANGLES, batch_edge, group2,
+    vertex_list2 = program_edge.vertex_list(n, gl.GL_TRIANGLES, batch_edge, group2,
                                        position=('f', fvs))
     # add vertex marks
     if marked_vertices is not None:
@@ -216,16 +216,16 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
         
         window.clear()
         # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
-        glPolygonOffset(1,1)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+        gl.glPolygonOffset(1,1)
+        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
         if wireframe:
-            glEnable(GL_POLYGON_OFFSET_FILL)
+            gl.glEnable(gl.GL_POLYGON_OFFSET_FILL)
         batch_model.draw()
         if wireframe:
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE)
-            glDisable(GL_POLYGON_OFFSET_FILL)
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+            gl.glDisable(gl.GL_POLYGON_OFFSET_FILL)
             batch_edge.draw()
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL)
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
         # draw UI
         ### glPushMatrix()
         ### glLoadIdentity()
@@ -238,11 +238,11 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
         s = min(w, h)
         offset_x = max(0, (w-h)//2)
         offset_y = max(0, (h-w)//2)
-        glViewport(offset_x, offset_y, s, s)
+        gl.glViewport(offset_x, offset_y, s, s)
         s = max(w, h)
         offset_x = min(0, (w-h)//2)
         offset_y = min(0, (h-w)//2)
-        glViewport(offset_x, offset_y, s, s)
+        gl.glViewport(offset_x, offset_y, s, s)
         proj = pyglet.math.Mat4.orthogonal_projection(-1, 1,
                                                       -1, 1,
                                                       1e3, -1e3)
@@ -286,13 +286,11 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
             rot_x = 0.0
 
     def update(dt):
-            pass
-    def vec(*args):
-        return (GLfloat * len(args))(*args)
+        pass
 
 
-    glEnable(GL_MULTISAMPLE_ARB)
-    glEnable(GL_DEPTH_TEST)
+    gl.glEnable(gl.GL_MULTISAMPLE_ARB)
+    gl.glEnable(gl.GL_DEPTH_TEST)
     pyglet.clock.schedule_interval(update, 1/60)
     pyglet.app.run()
 
