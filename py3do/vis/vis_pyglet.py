@@ -25,11 +25,12 @@ _point_mark = np.array([
 [0,0,-1], [0,-1,0], [1,0,0],
     ], dtype=np.double)[:,[0,2,1]]
 
-def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwargs):
+def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05,
+                marked_faces=None, *args, **kwargs):
     if not have_pyglet:
         raise RuntimeError("Pyglet not available")
     global scale, rot_z, rot_x
-    
+
     # Direct OpenGL commands to this window.
     try:
         # Try and create a window with multisampling (antialiasing)
@@ -78,8 +79,9 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
     {
         vec3 light_position = vec3(0.0, 0.0, 1000.0);
         float l = dot(normalize(-light_position), normalize(vertex_normal));
-        l += 0.5; // ambient
-        final_color = vec4(0.5, 0.3, 0.1, 1.0) * l * 1.3;
+        //l += 0.5; // ambient
+        final_color = vertex_colors * (l * 1.0 + 0.5);
+        //final_color = vec4(0.5, 0.3, 0.1, 1.0) * l * 1.3;
     }
     """
 
@@ -186,8 +188,19 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05, *args, **kwarg
 
     fvs = fvs.ravel()
     n = len(fvs) // 3
+    # set face colors
+    vert_colors = np.repeat([[0.65,0.39,0.13,1.0]], n, axis=0)
+    # change colors of marked faces
+    if marked_faces is not None:
+        marked_faces = np.asarray(marked_faces)
+        assert len(marked_faces.shape) == 1
+        marked_faces *= 3
+        for j in range(3):
+            vert_colors[marked_faces+j] = [1,0,0,1]
     vertex_list1 = program.vertex_list(n, gl.GL_TRIANGLES, batch_model, group,
-                                         position=('f', fvs), normal=('f', normals.repeat(3,0).ravel()))
+                                       position=('f', fvs),
+                                       normal=('f', normals.repeat(3,0).ravel()),
+                                       colors=('f', vert_colors.ravel()))
     vertex_list2 = program_edge.vertex_list(n, gl.GL_TRIANGLES, batch_edge, group2,
                                        position=('f', fvs))
     # add vertex marks
