@@ -1,12 +1,5 @@
 import numpy as np
 
-try:
-    import pyglet
-    import pyglet.math
-    import pyglet.gl as gl
-    have_pyglet = True
-except:
-    have_pyglet = False
 
 
 scale = 1.0
@@ -25,8 +18,20 @@ _point_mark = np.array([
 [0,0,-1], [0,-1,0], [1,0,0],
     ], dtype=np.double)[:,[0,2,1]]
 
+def view_pyglet_noblock(*args, **kwargs):
+    from threading import Thread
+    t = Thread(target=view_pyglet, args = args)
+    t.start()
+
 def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05,
                 marked_faces=None, *args, **kwargs):
+    try:
+        import pyglet
+        import pyglet.math
+        import pyglet.gl as gl
+        have_pyglet = True
+    except:
+        have_pyglet = False
     if not have_pyglet:
         raise RuntimeError("Pyglet not available")
     global scale, rot_z, rot_x
