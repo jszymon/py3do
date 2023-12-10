@@ -1,5 +1,12 @@
 import numpy as np
 
+try:
+    import pyglet
+    import pyglet.math
+    import pyglet.gl as gl
+    have_pyglet = True
+except:
+    have_pyglet = False
 
 
 scale = 1.0
@@ -18,22 +25,118 @@ _point_mark = np.array([
 [0,0,-1], [0,-1,0], [1,0,0],
     ], dtype=np.double)[:,[0,2,1]]
 
+class MyMaterialGroup(pyglet.graphics.ShaderGroup):
+    def __init__(self, vertex_source, fragment_source):
+        self.vert_shader = pyglet.graphics.shader.Shader(vertex_source, 'vertex')
+        self.frag_shader = pyglet.graphics.shader.Shader(fragment_source, 'fragment')
+        self.program = pyglet.graphics.shader.ShaderProgram(self.vert_shader, self.frag_shader)
+        super().__init__(self.program)
+        
+class FixedColorMaterialGroup(MyMaterialGroup):
+    """Draw everything in given color.  No lighting.
+
+    Need own class: pyglet's class is incomplete.
+
+    """
+    vertex_source = """#version 330 core
+        in vec3 position;
+        uniform WindowBlock
+        {
+            mat4 projection;
+            mat4 view;
+        } window;
+
+        uniform mat4 model;
+
+        void main()
+        {
+            gl_Position = window.projection * model * vec4(position, 1);
+        }
+        """
+    fragment_source = """#version 330 core
+        void main()
+        {{
+            gl_FragColor = vec4({r}, {g}, {b}, {a});
+        }}
+        """
+    def __init__(self, color=[0.5, 1.0, 1.0, 1.0]):
+        if len(color) == 3:
+            r, g, b = color
+            a = 1.0
+        elif len(color) == 4:
+            r, g, b, a = color
+        else:
+            assert 0 <= color <= 1
+            r = g = b = color
+            a = 1.0
+        self.color = color
+        frag_src = self.fragment_source.format(r=r, g=g, b=b, a=a)
+        super().__init__(self.vertex_source, frag_src)
+        
+class DiffuseMaterialGroup(MyMaterialGroup):
+    """Diffuse material group.
+
+    Lighting changes with angle.  Need own class: pyglet's class
+    is incomplete.
+
+    """
+    vertex_source = """#version 330 core
+        in vec3 position;
+        in vec3 normal;
+        in vec4 colors;
+        out vec4 vertex_colors;
+        out vec3 vertex_normal;
+        out vec3 vertex_position;
+
+        uniform WindowBlock
+        {
+            mat4 projection;
+            mat4 view;
+        } window;
+
+        uniform mat4 model;
+
+        void main()
+        {
+            gl_Position = window.projection * model * vec4(position, 1);
+            mat3 normal_matrix = transpose(inverse(mat3(model)));
+            vertex_normal = normal_matrix * normal;
+            vertex_colors = colors;
+            vertex_position = (model * vec4(position, 1)).xyz;
+        }
+    """
+    fragment_source = """#version 330 core
+        in vec4 vertex_colors;
+        in vec3 vertex_normal;
+        in vec3 vertex_position;
+        out vec4 final_color;
+
+        void main()
+        {{
+            vec3 light_position = vec3(0.0, 0.0, 1000.0);
+            float l = dot(normalize(-light_position), normalize(vertex_normal));
+            final_color = vertex_colors * (l * {brightness_scale} + {ambient});
+        }}
+    """
+    def __init__(self, ambient=0.0, brightness_scale=1.0):
+        frag_src = self.fragment_source.format(ambient=ambient,
+                                               brightness_scale=brightness_scale)
+        super().__init__(self.vertex_source, frag_src)
+
+
+
 def view_pyglet_noblock(*args, **kwargs):
     from threading import Thread
-    t = Thread(target=view_pyglet, args = args)
+    t = Thread(target=view_pyglet_block, args = args)
     t.start()
+    print("AAAA")
+    global rot_z
+    while(True):
+        ang = float(input())
+        rot_z = ang
 
-def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05,
+def view_pyglet_block(m, marked_vertices=None, vertex_marker_size=0.05,
                 marked_faces=None, *args, **kwargs):
-    try:
-        import pyglet
-        import pyglet.math
-        import pyglet.gl as gl
-        have_pyglet = True
-    except:
-        have_pyglet = False
-    if not have_pyglet:
-        raise RuntimeError("Pyglet not available")
     global scale, rot_z, rot_x
 
     # Direct OpenGL commands to this window.
@@ -55,104 +158,6 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05,
 
     from pyglet.graphics.shader import Shader, ShaderProgram
 
-    class FixedColorMaterialGroup(pyglet.graphics.ShaderGroup):
-        """Draw everything in given color.  No lighting.
-
-        Need own class: pyglet's class is incomplete.
-
-        """
-        vertex_source = """#version 330 core
-            in vec3 position;
-            uniform WindowBlock
-            {
-                mat4 projection;
-                mat4 view;
-            } window;
-
-            uniform mat4 model;
-
-            void main()
-            {
-                gl_Position = window.projection * model * vec4(position, 1);
-            }
-            """
-        fragment_source = """#version 330 core
-            void main()
-            {{
-                gl_FragColor = vec4({r}, {g}, {b}, {a});
-            }}
-            """
-        def __init__(self, color=[0.5, 1.0, 1.0, 1.0]):
-            if len(color) == 3:
-                r, g, b = color
-                a = 1.0
-            elif len(color) == 4:
-                r, g, b, a = color
-            else:
-                assert 0 <= color <= 1
-                r = g = b = color
-                a = 1.0
-            self.color = color
-            self.vert_shader = Shader(self.vertex_source, 'vertex')
-            frag_src = self.fragment_source.format(r=r, g=g, b=b, a=a)
-            self.frag_shader = Shader(frag_src, 'fragment')
-            self.program = ShaderProgram(self.vert_shader, self.frag_shader)
-            super().__init__(self.program)
-
-    class DiffuseMaterialGroup(pyglet.graphics.ShaderGroup):
-        """Diffuse material group.
-
-        Lighting changes with angle.  Need own class: pyglet's class
-        is incomplete.
-
-        """
-        vertex_source = """#version 330 core
-            in vec3 position;
-            in vec3 normal;
-            in vec4 colors;
-            out vec4 vertex_colors;
-            out vec3 vertex_normal;
-            out vec3 vertex_position;
-
-            uniform WindowBlock
-            {
-                mat4 projection;
-                mat4 view;
-            } window;
-
-            uniform mat4 model;
-
-            void main()
-            {
-                gl_Position = window.projection * model * vec4(position, 1);
-                mat3 normal_matrix = transpose(inverse(mat3(model)));
-                vertex_normal = normal_matrix * normal;
-                vertex_colors = colors;
-                vertex_position = (model * vec4(position, 1)).xyz;
-            }
-        """
-        fragment_source = """#version 330 core
-            in vec4 vertex_colors;
-            in vec3 vertex_normal;
-            in vec3 vertex_position;
-            out vec4 final_color;
-
-            void main()
-            {{
-                vec3 light_position = vec3(0.0, 0.0, 1000.0);
-                float l = dot(normalize(-light_position), normalize(vertex_normal));
-                final_color = vertex_colors * (l * {brightness_scale} + {ambient});
-            }}
-        """
-        def __init__(self, ambient=0.0, brightness_scale=1.0):
-            self.ambient = ambient
-            self.brightness_scale = brightness_scale
-            self.vert_shader = Shader(self.vertex_source, 'vertex')
-            frag_src = self.fragment_source.format(ambient=ambient,
-                                                   brightness_scale=brightness_scale)
-            self.frag_shader = Shader(frag_src, 'fragment')
-            self.program = ShaderProgram(self.vert_shader, self.frag_shader)
-            super().__init__(self.program)
 
     # Create a Material Groups for model, edges, UI, vertex marks
     group_ui = FixedColorMaterialGroup([1.0, 1.0, 1.0, 1.0])
@@ -160,12 +165,12 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05,
     group_edges = FixedColorMaterialGroup([0.5, 1.0, 1.0, 1.0])
 
     # Create a Material and Group for marked vertices
-    diffuse = [1.0, 0.0, 0.0, 1.0]
-    ambient = [1.0, 0.0, 0.0, 1.0]
-    specular = [0.0, 0.0, 0.0, 0.0]
-    emission = [0.0, 0.0, 0.0, 1.0]
-    shininess = 1.0
-    material = pyglet.model.Material("custom3", diffuse, ambient, specular, emission, shininess)
+    #diffuse = [1.0, 0.0, 0.0, 1.0]
+    #ambient = [1.0, 0.0, 0.0, 1.0]
+    #specular = [0.0, 0.0, 0.0, 0.0]
+    #emission = [0.0, 0.0, 0.0, 1.0]
+    #shininess = 1.0
+    #material = pyglet.model.Material("custom3", diffuse, ambient, specular, emission, shininess)
     group_vertex_mark = DiffuseMaterialGroup(ambient=0.5)
 
     # prepare UI
@@ -312,3 +317,4 @@ def view_pyglet(m, marked_vertices=None, vertex_marker_size=0.05,
     pyglet.clock.schedule_interval(update, 1/60)
     pyglet.app.run()
 
+view_pyglet = view_pyglet_noblock
