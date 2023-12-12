@@ -123,6 +123,154 @@ class DiffuseMaterialGroup(MyMaterialGroup):
                                                brightness_scale=brightness_scale)
         super().__init__(self.vertex_source, frag_src)
 
+class PygletViewer(pyglet.window.Window):
+    def __init__(self):
+        self.scale = 1.0
+        self.rot_z = 0.0
+        self.rot_x = 0.0
+        self.wireframe = True
+
+        # Initialize window
+        self.gl_config = gl.Config(sample_buffers=1, samples=4, depth_size=16, double_buffer=True)
+        super().__init__(width=960, height=540, resizable=True, config=self.gl_config)
+        print("OpenGL Context: {}".format(self.context.get_info().version))
+        
+
+    def set_model(self, m, marked_vertices=None, vertex_marker_size=0.05,
+                marked_faces=None):
+        self.m = m
+
+        # UI batches and groups
+        self.batch_ui = pyglet.graphics.Batch()
+        self.group_ui = FixedColorMaterialGroup([1.0, 1.0, 1.0, 1.0])
+        # create batches and groups
+        self.batch_model = pyglet.graphics.Batch()
+        self.batch_edge = pyglet.graphics.Batch()
+        self.group_model = DiffuseMaterialGroup(ambient=0.5)
+        self.group_edges = FixedColorMaterialGroup([0.5, 1.0, 1.0, 1.0])
+        self.group_vertex_mark = DiffuseMaterialGroup(ambient=0.75)
+
+        # calculate vertices and faces
+        vs = self.m.vertices[:, [0,2,1]]
+        normals = m.normals[:, [0,2,1]]
+        fvs = vs[m.faces]  # vertices of faces
+        center = vs.mean(axis=0) 
+        fvs -= center
+        fvs = fvs.ravel()
+        n = len(fvs) // 3
+
+        # calculate face colors
+        vert_colors = np.repeat([[0.65,0.39,0.13,1.0]], n, axis=0)
+        if marked_faces is not None:
+            marked_faces = np.asarray(marked_faces)
+            assert len(marked_faces.shape) == 1
+            marked_faces *= 3
+            for j in range(3):
+                vert_colors[marked_faces+j] = [1,0,0,1]
+
+        # add vertices/faces to GL
+        vertex_list1 = self.group_model.program.vertex_list(n, gl.GL_TRIANGLES,
+                                            self.batch_model, self.group_model,
+                                            position=('f', fvs),
+                                            normal=('f', normals.repeat(3,0).ravel()),
+                                            colors=('f', vert_colors.ravel()))
+        vertex_list2 = self.group_edges.program.vertex_list(n, gl.GL_TRIANGLES, self.batch_edge,
+                                            self.group_edges,
+                                            position=('f', fvs))
+
+        # add vertex marks
+        #if marked_vertices is not None:
+        #    marked_vertices = np.asarray(marked_vertices)
+        #    assert len(marked_vertices.shape) == 1
+        #    mv = m.vertices[marked_vertices,:][:,[0,2,1]] - center
+        #    mv = mv.repeat(_point_mark.shape[0], axis=0) \
+        #        + np.tile(_point_mark*vertex_marker_size,
+        #                  (marked_vertices.shape[0],1))
+        #    batch_model.add(mv.shape[0], GL_TRIANGLES, group_vertex_mark,
+        #                    ('v3f', mv.ravel()),
+        #                    ('n3f', np.tile(_point_mark,
+        #                                    (marked_vertices.shape[0],1)).ravel()),
+        #                    )
+
+    def on_draw(self):
+        model_tr = pyglet.math.Mat4()
+        model_tr = model_tr.scale((self.scale, self.scale, self.scale))
+        model_tr = model_tr.rotate(self.rot_x, (1,0,0))
+        model_tr = model_tr.rotate(self.rot_z, (0,1,0))
+        self.group_model.program['model'] = model_tr
+        self.group_edges.program['model'] = model_tr
+
+        self.clear()
+        # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
+        gl.glPolygonOffset(1,1)
+        gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+        if self.wireframe:
+            gl.glEnable(gl.GL_POLYGON_OFFSET_FILL)
+        self.batch_model.draw()
+        if self.wireframe:
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
+            gl.glDisable(gl.GL_POLYGON_OFFSET_FILL)
+            self.batch_edge.draw()
+            gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
+        # draw UI
+        ### glPushMatrix()
+        ### glLoadIdentity()
+        ### glTranslatef(-window.width/2,0,10000) # = projection's near val
+        ### batch_ui.draw()
+        ### glPopMatrix()
+
+    def on_resize(self, width, height):
+        w, h = self.get_framebuffer_size()
+        s = min(w, h)
+        offset_x = max(0, (w-h)//2)
+        offset_y = max(0, (h-w)//2)
+        gl.glViewport(offset_x, offset_y, s, s)
+        s = max(w, h)
+        offset_x = min(0, (w-h)//2)
+        offset_y = min(0, (h-w)//2)
+        gl.glViewport(offset_x, offset_y, s, s)
+        proj = pyglet.math.Mat4.orthogonal_projection(-1, 1,
+                                                      -1, 1,
+                                                      1e3, -1e3)
+        self.projection = proj
+        look_at = pyglet.math.Mat4.look_at(pyglet.math.Vec3(0, 0, -100),
+                                           pyglet.math.Vec3(0, 0, 0),
+                                           pyglet.math.Vec3(0, 1, 0))
+        self.view = look_at
+        return pyglet.event.EVENT_HANDLED
+    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        self.rot_x += dy / 600
+        self.rot_z -= dx / 300
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        self.scale *= (1 + scroll_y * 0.1)
+    def on_key_press(self, symbol, modifiers):
+        if (modifiers & pyglet.window.key.MOD_CTRL) and symbol == pyglet.window.key.W:
+            self.close()
+    def on_text_motion(self, motion):
+        if motion == pyglet.window.key.MOTION_LEFT:
+            self.rot_z += -0.1
+        elif motion == pyglet.window.key.MOTION_RIGHT:
+            self.rot_z += 0.1
+        elif motion == pyglet.window.key.MOTION_UP:
+            self.rot_x += -0.1
+        elif motion == pyglet.window.key.MOTION_DOWN:
+            self.rot_x += 0.1
+        elif motion == pyglet.window.key.MOTION_NEXT_PAGE:
+            self.scale *= 0.9
+        elif motion == pyglet.window.key.MOTION_PREVIOUS_PAGE:
+            self.scale *= 1.1
+        elif motion == pyglet.window.key.MOTION_BEGINNING_OF_LINE:
+            self.scale = 1.0
+            self.rot_z = 0.0
+            self.rot_x = 0.0
+
+    def update(self, dt):
+        pass
+    def run(self):
+        gl.glEnable(gl.GL_MULTISAMPLE_ARB)
+        gl.glEnable(gl.GL_DEPTH_TEST)
+        pyglet.clock.schedule_interval(self.update, 1/60)
+        pyglet.app.run()
 
 
 def view_pyglet_noblock(*args, **kwargs):
@@ -136,6 +284,12 @@ def view_pyglet_noblock(*args, **kwargs):
         rot_z = ang
 
 def view_pyglet_block(m, marked_vertices=None, vertex_marker_size=0.05,
+                marked_faces=None, *args, **kwargs):
+    pv = PygletViewer()
+    pv.set_model(m)
+    pv.run()
+
+def _view_pyglet_block(m, marked_vertices=None, vertex_marker_size=0.05,
                 marked_faces=None, *args, **kwargs):
     global scale, rot_z, rot_x
 
@@ -317,4 +471,4 @@ def view_pyglet_block(m, marked_vertices=None, vertex_marker_size=0.05,
     pyglet.clock.schedule_interval(update, 1/60)
     pyglet.app.run()
 
-view_pyglet = view_pyglet_noblock
+view_pyglet = view_pyglet_block
