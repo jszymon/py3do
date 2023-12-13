@@ -159,6 +159,7 @@ class PygletViewer(pyglet.window.Window):
         self.batch_edge = pyglet.graphics.Batch()
         self.group_model = DiffuseMaterialGroup(ambient=0.5)
         self.group_edges = FixedColorMaterialGroup([0.5, 1.0, 1.0, 1.0])
+        self.group_edge_mark = FixedColorMaterialGroup([0.0, 1.0, 0.0, 1.0])
         self.group_vertex_mark = DiffuseMaterialGroup(ambient=0.75)
 
         # calculate vertices and faces
@@ -189,6 +190,16 @@ class PygletViewer(pyglet.window.Window):
                                             self.group_edges,
                                             position=('f', fvs))
 
+        # add markded edges
+        if self.marked_edges is not None:
+            marked_edges = np.asarray(self.marked_edges)
+            assert len(marked_edges.shape) == 2
+            assert marked_edges.shape[1] == 2
+            ev = self.m.vertices[marked_edges.ravel()] - center
+            print(ev)
+            self.group_edge_mark.program.vertex_list(ev.shape[0]*3, gl.GL_LINES,
+                                                     self.batch_model, self.group_edge_mark,
+                                                     position=('f', ev.ravel()))
         # add vertex marks
         if self.marked_vertices is not None:
             marked_vertices = np.asarray(self.marked_vertices)
@@ -223,14 +234,17 @@ class PygletViewer(pyglet.window.Window):
         self.group_model.program['model'] = model_tr
         self.group_edges.program['model'] = model_tr
         self.group_vertex_mark.program['model'] = model_tr
+        self.group_edge_mark.program['model'] = model_tr
         
         self.clear()
         # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
+        gl.glLineWidth(5) # for edge marks
         gl.glPolygonOffset(1,1)
         gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
         if self.wireframe:
             gl.glEnable(gl.GL_POLYGON_OFFSET_FILL)
         self.batch_model.draw()
+        gl.glLineWidth(1)
         if self.wireframe:
             gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_LINE)
             gl.glDisable(gl.GL_POLYGON_OFFSET_FILL)
