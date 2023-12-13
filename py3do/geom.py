@@ -34,6 +34,21 @@ def normals_Newell(m):
     normals /= areas.reshape(-1,1)
     return normals, areas / 2
 
+def vec_angle(a, b):
+    """Angle between vectors a and b.
+
+    If dim a = dim b > 1 compute angles along last axis.  Use method
+    from https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
+
+    """
+    a = np.asfarray(a)
+    b = np.asfarray(b)
+    la = np.linalg.norm(a, axis=-1, keepdims=True)
+    lb = np.linalg.norm(b, axis=-1, keepdims=True)
+    y = np.linalg.norm(a*lb - b*la, axis=-1)
+    x = np.linalg.norm(a*lb + b*la, axis=-1)
+    return 2*np.arctan2(y, x)
+
 def face_angles(m):
     """Angles in faces adjacent to each vertex.
 
