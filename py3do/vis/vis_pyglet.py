@@ -119,21 +119,37 @@ class DiffuseMaterialGroup(MyMaterialGroup):
         super().__init__(self.vertex_source, frag_src)
 
 class PygletViewer(pyglet.window.Window):
-    def __init__(self):
+    def __init__(self, m, **kwargs):
         self.scale = 1.0
         self.rot_z = 0.0
         self.rot_x = 0.0
         self.wireframe = True
 
+        self.vertex_marker_size = 0.05
+
+        self.marked_faces = None
+        self.marked_edges = None
+        self.marked_vertices = None
+
+        self.m = m
+
         # Initialize window
         self.gl_config = gl.Config(sample_buffers=1, samples=4, depth_size=16, double_buffer=True)
         super().__init__(width=960, height=540, resizable=True, config=self.gl_config)
         print("OpenGL Context: {}".format(self.context.get_info().version))
-        
 
-    def set_model(self, m, marked_vertices=None, vertex_marker_size=0.05,
-                marked_faces=None):
-        self.m = m
+        # build model visualization
+        self.set_model(m, **kwargs)
+
+    def set_model(self, m=None, marked_vertices=None, marked_edges=None, marked_faces=None):
+        if m is not None:
+            self.m = m
+        if marked_faces is not None:
+            self.marked_faces = marked_faces
+        if marked_edges is not None:
+            self.marked_edges = marked_edges
+        if marked_vertices is not None:
+            self.marked_vertices = marked_vertices
 
         # UI batches and groups
         self.batch_ui = pyglet.graphics.Batch()
@@ -156,8 +172,8 @@ class PygletViewer(pyglet.window.Window):
 
         # calculate face colors
         vert_colors = np.repeat([[0.65,0.39,0.13,1.0]], n, axis=0)
-        if marked_faces is not None:
-            marked_faces = np.asarray(marked_faces)
+        if self.marked_faces is not None:
+            marked_faces = np.asarray(self.marked_faces)
             assert len(marked_faces.shape) == 1
             marked_faces *= 3
             for j in range(3):
@@ -174,18 +190,20 @@ class PygletViewer(pyglet.window.Window):
                                             position=('f', fvs))
 
         # add vertex marks
-        #if marked_vertices is not None:
-        #    marked_vertices = np.asarray(marked_vertices)
-        #    assert len(marked_vertices.shape) == 1
-        #    mv = m.vertices[marked_vertices,:][:,[0,2,1]] - center
-        #    mv = mv.repeat(_point_mark.shape[0], axis=0) \
-        #        + np.tile(_point_mark*vertex_marker_size,
-        #                  (marked_vertices.shape[0],1))
-        #    batch_model.add(mv.shape[0], GL_TRIANGLES, group_vertex_mark,
-        #                    ('v3f', mv.ravel()),
-        #                    ('n3f', np.tile(_point_mark,
-        #                                    (marked_vertices.shape[0],1)).ravel()),
-        #                    )
+        if self.marked_vertices is not None:
+            marked_vertices = np.asarray(self.marked_vertices)
+            assert len(marked_vertices.shape) == 1
+            mv = self.m.vertices[marked_vertices,:][:,[0,2,1]] - center
+            mv = mv.repeat(_point_mark.shape[0], axis=0) \
+                + np.tile(_point_mark*self.vertex_marker_size,
+                          (marked_vertices.shape[0], 1))
+            mark_colors = np.repeat([[1.0, 0, 0, 1.0]], mv.shape[0], axis=0)
+            self.group_vertex_mark.program.vertex_list(mv.shape[0], gl.GL_TRIANGLES,
+                                                       self.batch_model, self.group_vertex_mark,
+                                                       position=('f', mv.ravel()),
+                                                       normal=('f', np.tile(_point_mark, (marked_vertices.shape[0],1)).ravel()),
+                                                       colors=('f', mark_colors.ravel())
+                            )
 
         # add UI
         label = pyglet.text.Label('Wireframe',
@@ -204,6 +222,7 @@ class PygletViewer(pyglet.window.Window):
         model_tr = model_tr.rotate(self.rot_z, (0,1,0))
         self.group_model.program['model'] = model_tr
         self.group_edges.program['model'] = model_tr
+        self.group_vertex_mark.program['model'] = model_tr
         
         self.clear()
         # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
@@ -283,14 +302,13 @@ class PygletViewer(pyglet.window.Window):
         pyglet.app.run()
 
 
-def view_pyglet_noblock(m, *args, **kwargs):
+def view_pyglet_noblock(m, **kwargs):
     from threading import Thread
     from threading import Event
     pv_created = Event()
     def run(ret_pv):
-        pv = PygletViewer()
+        pv = PygletViewer(m, **kwargs)
         ret_pv[0] = pv
-        pv.set_model(m)
         pv_created.set()
         pv.run()
     ret_pv = [None]
@@ -300,16 +318,14 @@ def view_pyglet_noblock(m, *args, **kwargs):
     pv = ret_pv[0]
     return pv
 
-def view_pyglet_block(m, marked_vertices=None, vertex_marker_size=0.05,
-                      marked_faces=None, *args, **kwargs):
-    pv = PygletViewer()
-    pv.set_model(m)
+def view_pyglet_block(m, **kwargs):
+    pv = PygletViewer(m, **kwargs)
     pv.run()
 
 
 #view_pyglet = view_pyglet_block
-def view_pyglet(m):
-    pv = view_pyglet_noblock(m)
+def view_pyglet(m, *args, **kwargs):
+    pv = view_pyglet_noblock(m, *args, **kwargs)
     print("AAAA")
     while(True):
         ang = float(input())
