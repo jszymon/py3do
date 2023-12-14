@@ -1,5 +1,7 @@
 import numpy as np
 
+from ..geom import vec_angle
+
 try:
     import pyglet
     import pyglet.math
@@ -131,15 +133,26 @@ class PygletViewer(pyglet.window.Window):
         self.marked_edges = None
         self.marked_vertices = None
 
-        self.m = m
-
         # Initialize window
         self.gl_config = gl.Config(sample_buffers=1, samples=4, depth_size=16, double_buffer=True)
         super().__init__(width=960, height=540, resizable=True, config=self.gl_config)
         print("OpenGL Context: {}".format(self.context.get_info().version))
 
-        # build model visualization
+        # create material (shader) groups
+        # UI batches and groups
+        self.group_ui = FixedColorMaterialGroup([1.0, 1.0, 1.0, 1.0])
+        self.batch_ui = pyglet.graphics.Batch()
+        # create and groups for model
+        self.group_model = DiffuseMaterialGroup(ambient=0.5)
+        self.group_edges = FixedColorMaterialGroup([0.5, 1.0, 1.0, 1.0])
+        self.group_edge_mark = FixedColorMaterialGroup([0.0, 1.0, 0.0, 1.0])
+        self.group_vertex_mark = DiffuseMaterialGroup(ambient=0.75)
+        self.batch_model = pyglet.graphics.Batch()
+        self.batch_edge = pyglet.graphics.Batch()
+
+        # build model GL visualization
         self.set_model(m, **kwargs)
+
 
     def set_model(self, m=None, marked_vertices=None, marked_edges=None, marked_faces=None):
         if m is not None:
@@ -151,21 +164,11 @@ class PygletViewer(pyglet.window.Window):
         if marked_vertices is not None:
             self.marked_vertices = marked_vertices
 
-        # UI batches and groups
-        self.batch_ui = pyglet.graphics.Batch()
-        self.group_ui = FixedColorMaterialGroup([1.0, 1.0, 1.0, 1.0])
-        # create batches and groups for model
-        self.batch_model = pyglet.graphics.Batch()
-        self.batch_edge = pyglet.graphics.Batch()
-        self.group_model = DiffuseMaterialGroup(ambient=0.5)
-        self.group_edges = FixedColorMaterialGroup([0.5, 1.0, 1.0, 1.0])
-        self.group_edge_mark = FixedColorMaterialGroup([0.0, 1.0, 0.0, 1.0])
-        self.group_vertex_mark = DiffuseMaterialGroup(ambient=0.75)
 
         # calculate vertices and faces
         vs = self.m.vertices[:, [0,2,1]]
-        normals = m.normals[:, [0,2,1]]
-        fvs = vs[m.faces]  # vertices of faces
+        normals = self.m.normals[:, [0,2,1]]
+        fvs = vs[self.m.faces]  # vertices of faces
         center = vs.mean(axis=0) 
         fvs -= center
         fvs = fvs.ravel()
@@ -181,12 +184,16 @@ class PygletViewer(pyglet.window.Window):
                 vert_colors[marked_faces+j] = [1,0,0,1]
 
         # add vertices/faces to GL
-        vertex_list1 = self.group_model.program.vertex_list(n, gl.GL_TRIANGLES,
+        if hasattr(self, "faces_vl"):
+            self.faces_vl.delete()
+        self.faces_vl = self.group_model.program.vertex_list(n, gl.GL_TRIANGLES,
                                             self.batch_model, self.group_model,
                                             position=('f', fvs),
                                             normal=('f', normals.repeat(3,0).ravel()),
                                             colors=('f', vert_colors.ravel()))
-        vertex_list2 = self.group_edges.program.vertex_list(n, gl.GL_TRIANGLES, self.batch_edge,
+        if hasattr(self, "edges_vl"):
+            self.edges_vl.delete()
+        self.edges_vl = self.group_edges.program.vertex_list(n, gl.GL_TRIANGLES, self.batch_edge,
                                             self.group_edges,
                                             position=('f', fvs))
 
@@ -196,8 +203,9 @@ class PygletViewer(pyglet.window.Window):
             assert len(marked_edges.shape) == 2
             assert marked_edges.shape[1] == 2
             ev = self.m.vertices[marked_edges.ravel()] - center
-            print(ev)
-            self.group_edge_mark.program.vertex_list(ev.shape[0]*3, gl.GL_LINES,
+            if hasattr(self, "edge_mark_vl"):
+                self.edge_mark_vl.delete()
+            self.edge_mark_vl = self.group_edge_mark.program.vertex_list(ev.shape[0]*3, gl.GL_LINES,
                                                      self.batch_model, self.group_edge_mark,
                                                      position=('f', ev.ravel()))
         # add vertex marks
@@ -209,7 +217,9 @@ class PygletViewer(pyglet.window.Window):
                 + np.tile(_point_mark*self.vertex_marker_size,
                           (marked_vertices.shape[0], 1))
             mark_colors = np.repeat([[1.0, 0, 0, 1.0]], mv.shape[0], axis=0)
-            self.group_vertex_mark.program.vertex_list(mv.shape[0], gl.GL_TRIANGLES,
+            if hasattr(self, "vertex_mark_vl"):
+                self.vertex_mark_vl.delete()
+            self.vertex_mark_vl = self.group_vertex_mark.program.vertex_list(mv.shape[0], gl.GL_TRIANGLES,
                                                        self.batch_model, self.group_vertex_mark,
                                                        position=('f', mv.ravel()),
                                                        normal=('f', np.tile(_point_mark, (marked_vertices.shape[0],1)).ravel()),
@@ -227,6 +237,8 @@ class PygletViewer(pyglet.window.Window):
         #                         batch=batch_ui, group=group_ui)
 
     def on_draw(self):
+        self.clear()
+
         model_tr = pyglet.math.Mat4()
         model_tr = model_tr.scale((self.scale, self.scale, self.scale))
         model_tr = model_tr.rotate(self.rot_x, (1,0,0))
@@ -236,7 +248,6 @@ class PygletViewer(pyglet.window.Window):
         self.group_vertex_mark.program['model'] = model_tr
         self.group_edge_mark.program['model'] = model_tr
         
-        self.clear()
         # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
         gl.glLineWidth(5) # for edge marks
         gl.glPolygonOffset(1,1)
@@ -257,10 +268,24 @@ class PygletViewer(pyglet.window.Window):
         ### batch_ui.draw()
         ### glPopMatrix()
 
+    # utility functions
+    def show_face(self, face):
+        """Rotate model to show given face."""
+        n = self.m.faces.shape[0]
+        assert 0 <= face < n
+        nv = self.m.normals[face].copy()
+        rot_x = vec_angle(nv, [0,0,1]) - np.pi/2
+        self.rot_x = rot_x
+        nv[2] = 0.0
+        rot_z = vec_angle([0,-1,0], nv)
+        # orient angle using triple product
+        if np.dot([0,0,1], np.cross([0,-1,0], nv)) < 0:
+            rot_z = -rot_z
+        self.rot_z = rot_z
+    # event handling
     def close(self):
         self.is_active = False
         super().close()
-
     def on_resize(self, width, height):
         w, h = self.get_framebuffer_size()
         s = min(w, h)
@@ -306,6 +331,7 @@ class PygletViewer(pyglet.window.Window):
             self.rot_z = 0.0
             self.rot_x = 0.0
 
+    # main loop
     def update(self, dt):
         pass
     def run(self):
@@ -315,6 +341,10 @@ class PygletViewer(pyglet.window.Window):
         self.is_active = True
         pyglet.app.run()
 
+
+def view_pyglet(m, **kwargs):
+    pv = PygletViewer(m, **kwargs)
+    pv.run()
 
 def view_pyglet_noblock(m, **kwargs):
     from threading import Thread
@@ -332,17 +362,3 @@ def view_pyglet_noblock(m, **kwargs):
     pv = ret_pv[0]
     return pv
 
-def view_pyglet_block(m, **kwargs):
-    pv = PygletViewer(m, **kwargs)
-    pv.run()
-
-
-#view_pyglet = view_pyglet_block
-def view_pyglet(m, *args, **kwargs):
-    pv = view_pyglet_noblock(m, *args, **kwargs)
-    print("AAAA")
-    while(True):
-        ang = float(input())
-        if not pv.is_active:
-            break
-        pv.rot_z = ang
