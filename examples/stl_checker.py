@@ -22,6 +22,8 @@ else:
     print("No unused vertices")
 
 efm = EdgeToFaceMap(m)
+print(f"Model edges are {'' if efm.oriented else 'NOT '}correctly oriented")
+print(f"Model is {'' if efm.manifold else 'NOT '}manifold")
 print(f"Model is {'' if efm.watertight else 'NOT '}watertight")
 
 view_pyglet(m)
