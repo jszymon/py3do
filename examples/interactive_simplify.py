@@ -36,7 +36,11 @@ while True:
         print(f"Face must be an integer between 0 and {k-1}")
         continue
     fi = ai[fi]
-    pv.set_model(marked_faces=[fi])
-    pv.show_face(fi)
-    # find shortest edge
+    # find vertices of the shortest edge
     ei = a[fi].argmin()
+    edge_verts = [0,1,2]
+    edge_verts.remove(ei)
+    edge_verts = m.faces[fi][[0,1]]#[edge_verts]
+    print(edge_verts)
+    pv.set_model(marked_faces=[fi], marked_edges=[edge_verts])
+    pv.show_face(fi)
