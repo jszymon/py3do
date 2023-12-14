@@ -1,5 +1,7 @@
 """Triangular mesh."""
 
+import copy
+
 import numpy as np
 
 from .geom import normals_cross
@@ -61,7 +63,9 @@ class Mesh:
             raise RuntimeError("faces indices out of bounds")
         _check_points_array(self.normals, "normals")
 
-
+    def clone(self):
+        return copy.deepcopy(self)
+    
     def round_coords(self, decimals, *, inplace=False, merge=False):
         """Round coordinates of all points.
 
