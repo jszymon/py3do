@@ -79,3 +79,17 @@ class Mesh:
             return None
         return Mesh(np.around(self.vertices, decimals),
                     self.faces, self.normals)
+
+    def delete_edge(self, i, j):
+        """Delete an edge i--j.
+
+        vertex i is removed, all edges pointing to it now point at j.
+        Results in an usused vertex.
+
+        """
+        i_mask = (self.faces == i).any(axis=1)
+        j_mask = (self.faces == j).any(axis=1)
+        f_mask = ~(i_mask & j_mask)
+        self.faces = self.faces[f_mask]
+        self.normals = self.normals[f_mask]
+        self.faces[self.faces == i] = j
