@@ -5,6 +5,7 @@ from .geom import normals_Newell
 from .geom import normals_cross
 from .geom import vec_angle
 from .geom import vertex_normals
+from .geom import edge_lengths
 from .geom import volume
 from .topo import repeated_face_vertices
 from .topo import sorted_edges

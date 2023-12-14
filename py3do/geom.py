@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from .topo import sorted_edges
+
 def normals_cross(m):
     """Caclulate normals using cross products."""
     fvs = m.vertices[m.faces]  # vertices of faces
@@ -110,6 +112,14 @@ def vertex_normals(m, method="average", normalize=True):
     else:
         raise NotImplemented("vertex normals method '" + method + "' not implemented")
     return v_normals
+
+def edge_lengths(m):
+    """Return a list of unique edges and an array of their
+    corresponding lengths."""
+    edges = sorted_edges(m, unique=True)
+    evs = m.vertices[edges]
+    d = np.linalg.norm(evs[:,1,:] - evs[:,0,:], axis=-1)
+    return edges, d
 
 def volume(m):
     """Volume of mesh m.
