@@ -4,6 +4,7 @@ from .mesh import Mesh
 from .geom import normals_Newell
 from .geom import normals_cross
 from .geom import vec_angle
+from .geom import face_angles
 from .geom import vertex_normals
 from .geom import edge_lengths
 from .geom import volume
