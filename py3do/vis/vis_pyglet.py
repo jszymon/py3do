@@ -167,10 +167,10 @@ class PygletViewer(pyglet.window.Window):
 
         # calculate vertices and faces
         vs = self.m.vertices[:, [0,2,1]]
+        center = vs.mean(axis=0) 
+        vs -= center
         normals = self.m.normals[:, [0,2,1]]
         fvs = vs[self.m.faces]  # vertices of faces
-        center = vs.mean(axis=0) 
-        fvs -= center
         fvs = fvs.ravel()
         n = len(fvs) // 3
 
@@ -202,7 +202,7 @@ class PygletViewer(pyglet.window.Window):
             marked_edges = np.asarray(self.marked_edges)
             assert len(marked_edges.shape) == 2
             assert marked_edges.shape[1] == 2
-            ev = self.m.vertices[marked_edges.ravel()] - center
+            ev = vs[marked_edges.ravel()]
             if hasattr(self, "edge_mark_vl"):
                 self.edge_mark_vl.delete()
             self.edge_mark_vl = self.group_edge_mark.program.vertex_list(ev.shape[0]*3, gl.GL_LINES,
@@ -212,7 +212,7 @@ class PygletViewer(pyglet.window.Window):
         if self.marked_vertices is not None:
             marked_vertices = np.asarray(self.marked_vertices)
             assert len(marked_vertices.shape) == 1
-            mv = self.m.vertices[marked_vertices,:][:,[0,2,1]] - center
+            mv = vs[marked_vertices]
             mv = mv.repeat(_point_mark.shape[0], axis=0) \
                 + np.tile(_point_mark*self.vertex_marker_size,
                           (marked_vertices.shape[0], 1))
