@@ -17,6 +17,28 @@ def unused_vertices(m):
     unused_vertices = np.setdiff1d(np.arange(m.vertices.shape[0]), used_vertices)
     return unused_vertices
 
+def sorted_edges(m, return_order=False, unique=True):
+    """Return edges with sorted vertices.
+
+    If return_order is True a Boolean array is returned indicated
+    original edge had i > j.  If unique is True, repeated edges are
+    removed.  return_order and unique cannot both be True.
+
+    """
+    edges1 = m.faces[:,0:2]
+    edges2 = m.faces[:,1:3]
+    edges3 = m.faces[:,[2,0]]
+    edges = np.concatenate([edges1, edges2, edges3])
+    orientations = (edges[:,0] > edges[:,1])
+    edges[orientations] = edges[orientations][:, [1,0]]  # sort edge endpoints
+    if return_order:
+        assert not unique
+        return edges, orientations
+    if unique:
+        assert not return_order
+        edges = np.unique(edges, axis=0)
+    return edges
+
 class EdgeToFaceMap:
     """Stores faces adjacent to each edge.
 
@@ -25,12 +47,7 @@ class EdgeToFaceMap:
     i>j.
     """
     def __init__(self, m):
-        edges1 = m.faces[:,0:2]
-        edges2 = m.faces[:,1:3]
-        edges3 = m.faces[:,[2,0]]
-        edges = np.concatenate([edges1, edges2, edges3])
-        orientations = (edges[:,0] > edges[:,1])
-        edges[orientations] = edges[orientations][:, [1,0]]  # sort edge endpoints
+        edges, orientations = sorted_edges(m, return_order=True, unique=False)
         edges = np.column_stack([edges,
                         np.tile(np.arange(m.faces.shape[0],
                                               dtype=edges.dtype), 3)])

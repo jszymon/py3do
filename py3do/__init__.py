@@ -7,6 +7,7 @@ from .geom import vec_angle
 from .geom import vertex_normals
 from .geom import volume
 from .topo import repeated_face_vertices
+from .topo import sorted_edges
 from .topo import EdgeToFaceMap
 from .topo import connected_components
 from .primitives import cube
