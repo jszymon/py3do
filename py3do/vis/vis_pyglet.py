@@ -148,10 +148,13 @@ class PygletViewer(pyglet.window.Window):
         if m is not None:
             self.m = m
         if marked_faces is not None:
+            if marked_faces == []: marked_faces = None
             self.marked_faces = marked_faces
         if marked_edges is not None:
+            if marked_edges == []: marked_edges = None
             self.marked_edges = marked_edges
         if marked_vertices is not None:
+            if marked_vertices == []: marked_vertices = None
             self.marked_vertices = marked_vertices
 
 
@@ -188,23 +191,25 @@ class PygletViewer(pyglet.window.Window):
                                             position=('f', fvs))
 
         # add markded edges
+        if hasattr(self, "edge_mark_vl"):
+            self.edge_mark_vl.delete()
+            delattr(self, "edge_mark_vl")
         if self.marked_edges is not None:
             marked_edges = np.asarray(self.marked_edges)
             assert len(marked_edges.shape) == 2
             assert marked_edges.shape[1] == 2
             ev = vs[marked_edges.ravel()]
-            if hasattr(self, "edge_mark_vl"):
-                self.edge_mark_vl.delete()
             self.edge_mark_vl = self.group_edge_mark.program.vertex_list(ev.shape[0]*3, gl.GL_LINES,
                                                      self.batch_model, self.group_edge_mark,
                                                      position=('f', ev.ravel()))
         # add vertex marks
+        if hasattr(self, "vertex_mark_vl"):
+            self.vertex_mark_vl.delete()
+            delattr(self, "vertex_mark_vl")
         if self.marked_vertices is not None:
             marked_vertices = np.asarray(self.marked_vertices)
             assert len(marked_vertices.shape) == 1
             mv = vs[marked_vertices]
-            if hasattr(self, "vertex_mark_vl"):
-                self.vertex_mark_vl.delete()
             self.vertex_mark_vl = self.group_vertex_mark.program.vertex_list(mv.shape[0], gl.GL_POINTS,
                                                        self.batch_model, self.group_vertex_mark,
                                                        position=('f', mv.ravel()))
