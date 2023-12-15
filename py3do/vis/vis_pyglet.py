@@ -11,16 +11,6 @@ except:
     have_pyglet = False
 
 
-_point_mark = np.array([
-[0,0,1], [1,0,0], [0,1,0],
-[0,0,1], [0,1,0], [-1,0,0],
-[0,0,1], [-1,0,0], [0,-1,0],
-[0,0,1], [0,-1,0], [1,0,0],
-[0,0,-1], [1,0,0], [0,1,0],
-[0,0,-1], [0,1,0], [-1,0,0],
-[0,0,-1], [-1,0,0], [0,-1,0],
-[0,0,-1], [0,-1,0], [1,0,0],
-    ], dtype=np.double)[:,[0,2,1]]
 
 class MyMaterialGroup(pyglet.graphics.ShaderGroup):
     def __init__(self, vertex_source, fragment_source):
@@ -146,7 +136,7 @@ class PygletViewer(pyglet.window.Window):
         self.group_model = DiffuseMaterialGroup(ambient=0.5)
         self.group_edges = FixedColorMaterialGroup([0.5, 1.0, 1.0, 1.0])
         self.group_edge_mark = FixedColorMaterialGroup([0.0, 1.0, 0.0, 1.0])
-        self.group_vertex_mark = DiffuseMaterialGroup(ambient=0.75)
+        self.group_vertex_mark = FixedColorMaterialGroup([0.0, 0.0, 1.0, 1.0])
         self.batch_model = pyglet.graphics.Batch()
         self.batch_edge = pyglet.graphics.Batch()
 
@@ -213,18 +203,11 @@ class PygletViewer(pyglet.window.Window):
             marked_vertices = np.asarray(self.marked_vertices)
             assert len(marked_vertices.shape) == 1
             mv = vs[marked_vertices]
-            mv = mv.repeat(_point_mark.shape[0], axis=0) \
-                + np.tile(_point_mark*self.vertex_marker_size,
-                          (marked_vertices.shape[0], 1))
-            mark_colors = np.repeat([[1.0, 0, 0, 1.0]], mv.shape[0], axis=0)
             if hasattr(self, "vertex_mark_vl"):
                 self.vertex_mark_vl.delete()
-            self.vertex_mark_vl = self.group_vertex_mark.program.vertex_list(mv.shape[0], gl.GL_TRIANGLES,
+            self.vertex_mark_vl = self.group_vertex_mark.program.vertex_list(mv.shape[0], gl.GL_POINTS,
                                                        self.batch_model, self.group_vertex_mark,
-                                                       position=('f', mv.ravel()),
-                                                       normal=('f', np.tile(_point_mark, (marked_vertices.shape[0],1)).ravel()),
-                                                       colors=('f', mark_colors.ravel())
-                            )
+                                                       position=('f', mv.ravel()))
 
         # add UI
         label = pyglet.text.Label('Wireframe',
@@ -250,6 +233,7 @@ class PygletViewer(pyglet.window.Window):
         
         # based on https://community.khronos.org/t/solid-wireframe-in-the-same-time/43077/5
         gl.glLineWidth(5) # for edge marks
+        gl.glPointSize(10) # for edge marks
         gl.glPolygonOffset(1,1)
         gl.glPolygonMode(gl.GL_FRONT_AND_BACK, gl.GL_FILL)
         if self.wireframe:
