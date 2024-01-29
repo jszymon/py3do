@@ -115,6 +115,8 @@ class PygletViewer(pyglet.window.Window):
         self.scale = 1.0
         self.rot_z = 0.0
         self.rot_x = 0.0
+        self.shift_x = 0.0
+        self.shift_z = 0.0
         self.wireframe = True
 
         self.vertex_marker_size = 0.05
@@ -228,6 +230,7 @@ class PygletViewer(pyglet.window.Window):
         self.clear()
 
         model_tr = pyglet.math.Mat4()
+        model_tr = model_tr.translate((self.shift_x, self.shift_z, 0))
         model_tr = model_tr.scale((self.scale, self.scale, self.scale))
         model_tr = model_tr.rotate(self.rot_x, (1,0,0))
         model_tr = model_tr.rotate(self.rot_z, (0,1,0))
@@ -319,6 +322,18 @@ class PygletViewer(pyglet.window.Window):
             self.scale = 1.0
             self.rot_z = 0.0
             self.rot_x = 0.0
+            self.shift_z = 0.0
+            self.shift_x = 0.0
+    def on_text_motion_select(self, motion):
+        # cursor keys with shift
+        if motion == pyglet.window.key.MOTION_LEFT:
+            self.shift_x -= 0.1
+        elif motion == pyglet.window.key.MOTION_RIGHT:
+            self.shift_x += 0.1
+        elif motion == pyglet.window.key.MOTION_UP:
+            self.shift_z += 0.1
+        elif motion == pyglet.window.key.MOTION_DOWN:
+            self.shift_z -= 0.1
 
     # main loop
     def update(self, dt):
