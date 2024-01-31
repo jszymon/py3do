@@ -164,8 +164,16 @@ class PygletViewer(pyglet.window.Window):
         vs = self.m.vertices[:, [0,2,1]]
         center = vs.mean(axis=0) 
         vs -= center
+        # diameter and scale
+        r = np.abs(vs).max(axis=0)
+        r = np.linalg.norm(r)
+        if r < 1e-10:
+            r = 1
+        self.scale = 1.0 / (2*r)
+        self.orig_scale = self.scale  # for home button
         normals = self.m.normals[:, [0,2,1]]
-        fvs = vs[self.m.faces]  # vertices of faces
+        # vertices of faces
+        fvs = vs[self.m.faces]
         fvs = fvs.ravel()
         n = len(fvs) // 3
 
@@ -280,10 +288,6 @@ class PygletViewer(pyglet.window.Window):
         super().close()
     def on_resize(self, width, height):
         w, h = self.get_framebuffer_size()
-        s = min(w, h)
-        offset_x = max(0, (w-h)//2)
-        offset_y = max(0, (h-w)//2)
-        gl.glViewport(offset_x, offset_y, s, s)
         s = max(w, h)
         offset_x = min(0, (w-h)//2)
         offset_y = min(0, (h-w)//2)
@@ -298,8 +302,14 @@ class PygletViewer(pyglet.window.Window):
         self.view = look_at
         return pyglet.event.EVENT_HANDLED
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        self.rot_x += dy / 600
-        self.rot_z -= dx / 300
+        if (modifiers & pyglet.window.key.MOD_SHIFT):
+            w, h = self.get_framebuffer_size()
+            s = max(w, h)
+            self.shift_x += 2 * dx / s
+            self.shift_z += 2 * dy / s
+        else:
+            self.rot_x += dy / 600
+            self.rot_z -= dx / 300
     def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
         self.scale *= (1 + scroll_y * 0.1)
     def on_key_press(self, symbol, modifiers):
@@ -319,7 +329,7 @@ class PygletViewer(pyglet.window.Window):
         elif motion == pyglet.window.key.MOTION_PREVIOUS_PAGE:
             self.scale *= 1.1
         elif motion == pyglet.window.key.MOTION_BEGINNING_OF_LINE:
-            self.scale = 1.0
+            self.scale = self.orig_scale
             self.rot_z = 0.0
             self.rot_x = 0.0
             self.shift_z = 0.0
