@@ -327,13 +327,13 @@ class PygletViewer(pyglet.window.Window):
     def on_text_motion_select(self, motion):
         # cursor keys with shift
         if motion == pyglet.window.key.MOTION_LEFT:
-            self.shift_x -= 0.1
+            self.shift_x += 0.01
         elif motion == pyglet.window.key.MOTION_RIGHT:
-            self.shift_x += 0.1
+            self.shift_x -= 0.01
         elif motion == pyglet.window.key.MOTION_UP:
-            self.shift_z += 0.1
+            self.shift_z -= 0.01
         elif motion == pyglet.window.key.MOTION_DOWN:
-            self.shift_z -= 0.1
+            self.shift_z += 0.01
 
     # main loop
     def update(self, dt):
