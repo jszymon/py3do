@@ -5,6 +5,7 @@ from py3do.vis import view_pyglet
 from py3do.topo import repeated_face_vertices
 from py3do.topo import unused_vertices
 from py3do.topo import EdgeToFaceMap
+from py3do import connected_components
 
 m = read_stl(sys.argv[1])
 
@@ -20,6 +21,10 @@ if len(rep_vert) > 0:
     print(f"{len(unu_vert)} unused vertices")
 else:
     print("No unused vertices")
+
+nc, _, _ = connected_components(m)
+if nc > 1:
+    print(f"\nModel consists of {nc} connected components\n")
 
 efm = EdgeToFaceMap(m)
 print(f"Model edges are {'' if efm.oriented else 'NOT '}correctly oriented")
