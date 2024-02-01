@@ -238,8 +238,8 @@ class PygletViewer(pyglet.window.Window):
         self.clear()
 
         model_tr = pyglet.math.Mat4()
-        model_tr = model_tr.translate((self.shift_x, self.shift_z, 0))
         model_tr = model_tr.scale((self.scale, self.scale, self.scale))
+        model_tr = model_tr.translate((self.shift_x, self.shift_z, 0))
         model_tr = model_tr.rotate(self.rot_x, (1,0,0))
         model_tr = model_tr.rotate(self.rot_z, (0,1,0))
         self.group_model.program['model'] = model_tr
@@ -305,8 +305,8 @@ class PygletViewer(pyglet.window.Window):
         if (modifiers & pyglet.window.key.MOD_SHIFT):
             w, h = self.get_framebuffer_size()
             s = max(w, h)
-            self.shift_x += 2 * dx / s
-            self.shift_z += 2 * dy / s
+            self.shift_x += 2 * dx / s / self.scale
+            self.shift_z += 2 * dy / s / self.scale
         else:
             self.rot_x += dy / 600
             self.rot_z -= dx / 300
