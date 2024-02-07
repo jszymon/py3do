@@ -17,9 +17,18 @@ class UnionFind:
             ip = self.find(ip)
             self.parents[i] = ip
         return ip
+    def _find_scalar(self, i):
+        """Fast version for scalars, avoids call to .any()"""
+        # skip bound checking for speed
+        ip = self.parents[i]
+        if i != ip:
+            ip = self._find_scalar(ip)
+            self.parents[i] = ip
+        return ip
     def union(self, i, j):
-        i = self.find(i)
-        j = self.find(j)
+        # skip bound checking for speed
+        i = self._find_scalar(i)
+        j = self._find_scalar(j)
         if i != j:
             self.n = self.n-1
             self.parents[j] = i
