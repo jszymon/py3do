@@ -118,7 +118,6 @@ def connected_components(m):
     for (x,y,z) in m.faces:
         uf.union(x, y)
         uf.union(x, z)
-        uf.union(y, z)
         if uf.n == 1:
             break
     nc = uf.n
