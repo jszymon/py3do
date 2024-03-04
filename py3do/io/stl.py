@@ -1,3 +1,4 @@
+import io
 from contextlib import nullcontext
 from itertools import count
 from collections import defaultdict
@@ -125,6 +126,32 @@ def _read_n_bytes(f, n):
     if len(b) != n:
         raise RuntimeError("Unexpected end of file")
     return b
+def read_binary_stl_numpy(fname, *, fix_nan_normals=False):
+    """Use numpy operations to read stl.  Unfortunately np.unique is
+    slower that python dicts."""
+    facet_dtype = [("normal", "<f4", (3,)),
+                   ("v", "<f4", (3,3)),
+                   ("attr", np.uint16)
+                   ]
+    if hasattr(fname, 'read'):
+        f_ctx = nullcontext(fname)
+    else:
+        f_ctx = open(fname, 'rb')
+    with f_ctx as f:
+        header = _read_n_bytes(f, 80)
+        n_faces_b = _read_n_bytes(f, 4)
+        n_faces = unpack("<L", n_faces_b)[0]
+        try:
+            d = np.fromfile(f, dtype=facet_dtype, count=n_faces)
+        except io.UnsupportedOperation: # probably StringIO
+            d = np.frombuffer(f.read(), dtype=facet_dtype, count=n_faces)            
+        if len(f.read(1)) != 0:
+            raise RuntimeError("Expected end of file")
+    vertices, faces = np.unique(d["v"].reshape(-1,3), axis=0, return_inverse=True)
+    faces = faces.reshape(-1,3)
+    normals = d["normal"]
+    m = Mesh(vertices, faces, normals, fix_nan_normals=fix_nan_normals)
+    return m
 def read_binary_stl(fname, *, fix_nan_normals=False):
     vertex_map = defaultdict(count().__next__)
     faces = []
@@ -138,24 +165,23 @@ def read_binary_stl(fname, *, fix_nan_normals=False):
         header = _read_n_bytes(f, 80)
         n_faces_b = _read_n_bytes(f, 4)
         n_faces = unpack("<L", n_faces_b)[0]
-        for i in range(n_faces):
-            face = _read_n_bytes(f, facet_str.size)
-            normal_x, normal_y, normal_z, \
-            v1x, v1y, v1z, \
-            v2x, v2y, v2z, \
-            v3x, v3y, v3z, \
-            attr = facet_str.unpack(face)
-            normal = (normal_x, normal_y, normal_z)
-            v1 = (v1x, v1y, v1z)
-            v2 = (v2x, v2y, v2z)
-            v3 = (v3x, v3y, v3z)
-            i1 = vertex_map[v1]
-            i2 = vertex_map[v2]
-            i3 = vertex_map[v3]
-            faces.append((i1, i2, i3))
-            normals.append(normal)
+        buf = f.read(facet_str.size * n_faces)
         if len(f.read(1)) != 0:
             raise RuntimeError("Expected end of file")
+    for normal_x, normal_y, normal_z, \
+        v1x, v1y, v1z, \
+        v2x, v2y, v2z, \
+        v3x, v3y, v3z, \
+        attr in facet_str.iter_unpack(buf):
+        normal = (normal_x, normal_y, normal_z)
+        v1 = (v1x, v1y, v1z)
+        v2 = (v2x, v2y, v2z)
+        v3 = (v3x, v3y, v3z)
+        i1 = vertex_map[v1]
+        i2 = vertex_map[v2]
+        i3 = vertex_map[v3]
+        faces.append((i1, i2, i3))
+        normals.append(normal)
     vertices = _vertex_list_from_map(vertex_map)
     m = Mesh(vertices, faces, normals, fix_nan_normals=fix_nan_normals)
     return m
