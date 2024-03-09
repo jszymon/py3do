@@ -66,7 +66,7 @@ def cylinder_faces(bottom_idxs, top_idxs):
 
 def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
                   connect_top_bottom=False):
-    """Make a circular shape based on r_1, h_2, r2, .... sequence.
+    """Make a circular shape based on r_1, h_1, r_2, h_2, .... sequence.
 
     h_1 is assumed to be 0."""
     def make_cone_segment(r, h):
@@ -89,16 +89,15 @@ def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
     vs = []
     v_idx = 0
     fcs = []
-    hi = 0.0
     for i, rh in enumerate(args):
         if i % 2 == 0:
-            make_cone_segment(rh, hi)
-            prev_r = rh
+            ri = rh
         else:
             hi = rh
-    if len(args) > 0 and i % 2 == 1:
-        make_cone_segment(prev_r, hi)
-    if len(args) > 0 and close_top and prev_r != 0:
+            make_cone_segment(ri, hi)
+    if len(args) > 0 and i % 2 == 0:
+        raise RuntimeError("odd number of cone pipe coordinates")
+    if len(args) > 0 and close_top and ri != 0:
         make_cone_segment(0, hi)
     if connect_top_bottom:
         new_fs = cylinder_faces(range(v_idx - len(vs[-1]), v_idx),
