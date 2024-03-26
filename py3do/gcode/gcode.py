@@ -150,9 +150,11 @@ class GCode:
                 elif cmd == "G0" or cmd == "G1":
                     if rel_coord:
                         a_coord = [0, 0, 0]
+                        a_e = 0
                     else:
                         a_coord = [x, y, z]
-                    de = 0
+                        a_e = e
+                    # parse args
                     for a in args:
                         ci = "XYZ".find(a[0])
                         if ci > -1:
@@ -161,10 +163,6 @@ class GCode:
                         elif a[0] == "E":
                             move_made = True
                             a_e = float(a[1:])
-                            if rel_extrude:
-                                de = a_e
-                            else:
-                                de = a_e - e
                         elif a[0] == "F":
                             feed_rate = float(a[1:])
                     # compute new coords and move time
@@ -173,10 +171,15 @@ class GCode:
                         a_coord[1] -= y
                         a_coord[2] -= z
                     d = a_coord
+                    if rel_extrude:
+                        de = a_e
+                    else:
+                        de = a_e - e
                     x += d[0]
                     y += d[1]
                     z += d[2]
                     e += de
+                    # compute move parameters
                     dist = np.sqrt(sum(c*c for c in d))
                     if dist == 0:
                         dt = abs(de) / feed_rate * 60
@@ -187,6 +190,7 @@ class GCode:
                         print(li, "Warning: G1 move without extrusion", len(self.pos))
                     if de != 0 and cmd[1] == "0":
                         self.events.append((li, ["Warning: G0 move with extrusion"]))
+                    #make_move(li, x, y, x, e, dt, dist, de)
                 else:
                     self.events.append((li, ["Warning: Unhandled Gcode", cmd, args]))
                 # add new extrusion point
