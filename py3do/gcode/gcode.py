@@ -2,6 +2,7 @@
 
 from contextlib import nullcontext
 
+import math
 import numpy as np
 
 def _numbered_line_reader(f):
@@ -16,8 +17,68 @@ def _get_arg(args, a, conv=None):
             return ai
     return None
 
+def planArc(currentPos, targetPos, offset, clockwise,
+            alpha_axis, beta_axis, helical_axis,
+            mm_per_arc_segment=1):
+    """Copied directly from klipper for compatibility"""
+    # todo: sometimes produces full circles
+
+    # Radius vector from center to current location
+    r_P = -offset[0]
+    r_Q = -offset[1]
+
+    # Determine angular travel
+    center_P = currentPos[alpha_axis] - r_P
+    center_Q = currentPos[beta_axis] - r_Q
+    rt_Alpha = targetPos[alpha_axis] - center_P
+    rt_Beta = targetPos[beta_axis] - center_Q
+    angular_travel = math.atan2(r_P * rt_Beta - r_Q * rt_Alpha,
+                                r_P * rt_Alpha + r_Q * rt_Beta)
+    if angular_travel < 0.:
+        angular_travel += 2. * math.pi
+    if clockwise:
+        angular_travel -= 2. * math.pi
+
+    if (angular_travel == 0.
+        and currentPos[alpha_axis] == targetPos[alpha_axis]
+        and currentPos[beta_axis] == targetPos[beta_axis]):
+        # Make a circle if the angular rotation is 0 and the
+        # target is current position
+        angular_travel = 2. * math.pi
+
+    # Determine number of segments
+    linear_travel = targetPos[helical_axis] - currentPos[helical_axis]
+    radius = math.hypot(r_P, r_Q)
+    flat_mm = radius * angular_travel
+    if linear_travel:
+        mm_of_travel = math.hypot(flat_mm, linear_travel)
+    else:
+        mm_of_travel = math.fabs(flat_mm)
+    segments = max(1., math.floor(mm_of_travel / mm_per_arc_segment))
+
+    # Generate coordinates
+    theta_per_segment = angular_travel / segments
+    linear_per_segment = linear_travel / segments
+    coords = []
+    for i in range(1, int(segments)):
+        dist_Helical = i * linear_per_segment
+        cos_Ti = math.cos(i * theta_per_segment)
+        sin_Ti = math.sin(i * theta_per_segment)
+        r_P = -offset[0] * cos_Ti + offset[1] * sin_Ti
+        r_Q = -offset[0] * sin_Ti - offset[1] * cos_Ti
+
+        # Coord doesn't support index assignment, create list
+        c = [None, None, None]
+        c[alpha_axis] = center_P + r_P
+        c[beta_axis] = center_Q + r_Q
+        c[helical_axis] = currentPos[helical_axis] + dist_Helical
+        coords.append(c)
+
+    coords.append(targetPos)
+    return coords
+
 class GCode:
-    def __init__(self, f):
+    def __init__(self, f, mm_per_arc_segment=1):
         self.parse_gcode(f)
         self.pos = np.array(self.pos)
         # index line number -> pos array
@@ -45,13 +106,39 @@ class GCode:
         self.n_layers = len(self.layers)
         self.layers.append(self.pos.shape[0])
     def parse_gcode(self, f):
+        def _make_move():
+            nonlocal x, y, z, e
+            nonlocal feed_rate
+            dist = np.sqrt((next_coord[0] - x)**2 + (next_coord[1] - y)**2 + (next_coord[2] - z)**2)
+            de = next_coord[3] - e
+            if feed_rate is None:
+                dt = None
+            else:
+                if dist == 0:
+                    dt = abs(de) / feed_rate * 60
+                else:
+                    dt = dist / feed_rate * 60
+            if de == 0 and cmd[1] == "1":
+                self.events.append((li, ["Warning: G1 move without extrusion"]))
+                print(li, "Warning: G1 move without extrusion", len(self.pos))
+            if de != 0 and cmd[1] == "0":
+                self.events.append((li, ["Warning: G0 move with extrusion"]))
+            # make the move
+            x, y, z, e = next_coord
+            self.line_nos.append(li)
+            self.pos.append([x, y, z])
+            self.extruder.append(e)
+            self.dts.append(dt)
+            self.dists.append(dist)
+            self.des.append(de)
+
         if hasattr(f, 'read'):
             f_ctx = nullcontext(f)
         else:
             f_ctx = open(f, 'r')
         # state
         self.slicer = None
-        x = y = z = None
+        x = y = z = 100.0
         e = 0.0
         feed_rate = None
         rel_extrude = False
@@ -73,7 +160,6 @@ class GCode:
         self.des = [] # extruder distances
         with f_ctx as fl:
             for li, l in _numbered_line_reader(fl):
-                move_made = False
                 l = l.strip()
                 if l == "":
                     continue
@@ -102,18 +188,16 @@ class GCode:
                 args = _split_cmd[1:]
                 if cmd == "G28":
                     if len(args) == 0:
-                        x = y = z = 0
+                        next_coord = [0, 0, 0, e]
                     else:
+                        next_coord = [x, y, z, e]
                         if "X" in args:
-                            x = 0
+                            next_coord[0] = 0
                         if "Y" in args:
-                            y = 0
+                            next_coord[1] = 0
                         if "Z" in args:
-                            z = 0
-                    move_made = True
-                    dt = 5 # arbitrary value
-                    dist = 5 # arbitrary value
-                    de = 0
+                            next_coord[2] = 0
+                    _make_move()
                 elif cmd == "M82":
                     rel_extrude = False
                 elif cmd == "M83":
@@ -149,58 +233,63 @@ class GCode:
                             print("Unknown G92 coordinate")
                 elif cmd == "G0" or cmd == "G1":
                     if rel_coord:
-                        a_coord = [0, 0, 0]
-                        a_e = 0
+                        next_coord = [0, 0, 0, e]
                     else:
-                        a_coord = [x, y, z]
-                        a_e = e
+                        next_coord = [x, y, z, e]
+                    if rel_extrude:
+                        next_coord[3] = 0
                     # parse args
                     for a in args:
-                        ci = "XYZ".find(a[0])
+                        ci = "XYZE".find(a[0])
                         if ci > -1:
                             move_made = True
-                            a_coord[ci] = float(a[1:])
-                        elif a[0] == "E":
-                            move_made = True
-                            a_e = float(a[1:])
+                            next_coord[ci] = float(a[1:])
                         elif a[0] == "F":
                             feed_rate = float(a[1:])
+                        else:
+                            raise RuntimeError("Wrong argument for G0/G1: " + a[0])
                     # compute new coords and move time
-                    if not rel_coord:
-                        a_coord[0] -= x
-                        a_coord[1] -= y
-                        a_coord[2] -= z
-                    d = a_coord
+                    if rel_coord:
+                        next_coord[0] += x
+                        next_coord[1] += y
+                        next_coord[2] += z
                     if rel_extrude:
-                        de = a_e
-                    else:
-                        de = a_e - e
-                    x += d[0]
-                    y += d[1]
-                    z += d[2]
-                    e += de
-                    # compute move parameters
-                    dist = np.sqrt(sum(c*c for c in d))
-                    if dist == 0:
-                        dt = abs(de) / feed_rate * 60
-                    else:
-                        dt = dist / feed_rate * 60
-                    if de == 0 and cmd[1] == "1":
-                        self.events.append((li, ["Warning: G1 move without extrusion"]))
-                        print(li, "Warning: G1 move without extrusion", len(self.pos))
-                    if de != 0 and cmd[1] == "0":
-                        self.events.append((li, ["Warning: G0 move with extrusion"]))
-                    #make_move(li, x, y, x, e, dt, dist, de)
+                        next_coord[3] += e
+                    if move_made:
+                        _make_move()
+                elif cmd == "G2" or cmd == "G3":
+                    if rel_coord:
+                        self.events.append((li, ["Warning: G2/G3 do not support relative coordinates", cmd, args]))
+                        continue
+                    #self.events.append((li, ["Warning: Unimplemented arc Gcode", cmd, args]))
+                    clockwise = (cmd[1] == "2")
+                    next_coord = [x, y, z, e]
+                    I = J = None
+                    # parse args
+                    for a in args:
+                        ci = "XYZE".find(a[0])
+                        if ci > -1:
+                            move_made = True
+                            next_coord[ci] = float(a[1:])
+                        elif a[0] == "F":
+                            feed_rate = float(a[1:])
+                        elif a[0] == "I":
+                            I = float(a[1:])
+                        elif a[0] == "J":
+                            J = float(a[1:])
+                        else:
+                            raise RuntimeError("Wrong argument for G2/G3: " + a[0])
+                    de = next_coord[3] - e
+                    # compute arc coords
+                    if I is None or J is None:
+                        raise RuntimeError("Arc center not provided")
+                    coords = planArc([x, y, z], next_coord[:3], [I, J, 0], clockwise, 0, 1, 2)
+                    de_move = de / len(coords)
+                    for c in coords:
+                        next_coord = c + [e + de_move]
+                        _make_move()                        
                 else:
                     self.events.append((li, ["Warning: Unhandled Gcode", cmd, args]))
-                # add new extrusion point
-                if move_made:
-                    self.line_nos.append(li)
-                    self.pos.append([x, y, z])
-                    self.extruder.append(e)
-                    self.dts.append(dt)
-                    self.dists.append(dist)
-                    self.des.append(de)
             self.n_lines = li
     # plot:
     # 3d
