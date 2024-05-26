@@ -41,9 +41,12 @@ def _parse_vector(f, match, raise_on_nonmatch=True):
     return vec, li, l
 def _vertex_list_from_map(vertex_map):
     """Extract ordered list of vertices from vertex map."""
-    items = list(vertex_map.items())
-    items.sort(key = lambda x: x[1])
-    vertices = [i[0] for i in items]
+    # uncomment for unsorted defaultdict
+    #items = list(vertex_map.items())
+    #items.sort(key = lambda x: x[1])
+    #vertices = [i[0] for i in items]
+    # assume defaultdict is sorted
+    vertices = list(vertex_map.keys())
     return vertices
 
 def read_ascii_stl(fname, *, fix_nan_normals=False):
