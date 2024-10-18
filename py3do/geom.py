@@ -43,8 +43,8 @@ def vec_angle(a, b):
     from https://people.eecs.berkeley.edu/~wkahan/Mindless.pdf
 
     """
-    a = np.asfarray(a)
-    b = np.asfarray(b)
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
     la = np.linalg.norm(a, axis=-1, keepdims=True)
     lb = np.linalg.norm(b, axis=-1, keepdims=True)
     y = np.linalg.norm(a*lb - b*la, axis=-1)

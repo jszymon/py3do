@@ -13,7 +13,7 @@ def _as_3col(x, *, fl=True):
     if len(x) == 0:
         return np.empty((0,3), dtype=np.double if fl else np.uint)
     if fl:
-        x = np.asfarray(x)
+        x = np.asarray(x, dtype=float)
     else:
         x = np.asarray(x)
     return np.asarray(x)
