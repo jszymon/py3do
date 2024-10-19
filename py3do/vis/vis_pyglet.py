@@ -209,7 +209,7 @@ class PygletViewer(pyglet.window.Window):
             assert len(marked_edges.shape) == 2
             assert marked_edges.shape[1] == 2
             ev = vs[marked_edges.ravel()]
-            self.edge_mark_vl = self.group_edge_mark.program.vertex_list(ev.shape[0]*3, gl.GL_LINES,
+            self.edge_mark_vl = self.group_edge_mark.program.vertex_list(ev.shape[0], gl.GL_LINES,
                                                      self.batch_model, self.group_edge_mark,
                                                      position=('f', ev.ravel()))
         # add vertex marks
