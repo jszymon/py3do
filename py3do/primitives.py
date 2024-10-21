@@ -83,8 +83,9 @@ def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
         vs.append(new_v)
         v_idx = v_idx + len(new_v)
 
-    if close_bottom:
-        args = [0, 0] + list(args)
+    args = list(args)
+    if close_bottom and args[0] != 0:
+        args = [0, 0] + args
     c = np.hstack([circle(n), np.zeros((n, 1))])
     vs = []
     v_idx = 0
