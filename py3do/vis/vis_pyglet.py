@@ -162,7 +162,7 @@ class PygletViewer(pyglet.window.Window):
 
         # calculate vertices and faces
         vs = self.m.vertices[:, [0,2,1]]
-        center = vs.mean(axis=0) 
+        center = vs.mean(axis=0)
         vs -= center
         # diameter and scale
         r = np.abs(vs).max(axis=0)
