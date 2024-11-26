@@ -64,7 +64,7 @@ def cylinder_faces(bottom_idxs, top_idxs):
         f = f1 + f2
     return np.array(f, dtype=int)
 
-def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
+def cone_pipe(*args, n=128, close_bottom=False, close_top=False,
                   connect_top_bottom=False):
     """Make a circular shape based on r_1, h_1, r_2, h_2, .... sequence.
 
@@ -110,3 +110,14 @@ def cone_pipe(*args, n=100, close_bottom=False, close_top=False,
     m = Mesh(v, f)
     m.normals, _ = normals_cross(m)
     return m
+
+def uv_sphere(n_u=128, n_v=None):
+    """An uv-sphere.
+
+    u is the horizontal coordinate."""
+    if n_v is None:
+        n_v = n_u
+    angles = np.linspace(-np.pi/2, np.pi/2, n_v+2)[1:-1]
+    c = np.column_stack([np.cos(angles), np.sin(angles)]).ravel()
+    c = np.concatenate([(0,-1), c, (0,1)])
+    return cone_pipe(*c, close_bottom=True, close_top=True, n=n_u)

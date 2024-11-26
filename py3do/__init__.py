@@ -15,6 +15,7 @@ from .topo import connected_components
 from .primitives import cube
 from .primitives import circle
 from .primitives import cone_pipe
+from .primitives import uv_sphere
 from .binary_relations import is_isomorphic
 from .mesh_ops import split_mesh
 from .shell import offset_mesh
