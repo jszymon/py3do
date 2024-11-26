@@ -128,3 +128,25 @@ def volume(m):
     n *= a.reshape(-1,1)
     vs = m.vertices[m.faces[:,0]] # coords of first vertex of every face
     return np.vdot(vs, n) / 3
+
+def cart2sph(v):
+    """Cartesian to spherical coordinates.
+
+    Input should be an n x 3 array."""
+    r = np.linalg.norm(v, axis=-1, keepdims=True)
+    theta = vec_angle(v, [0,0,1])
+    # below works for vectors and scalars:
+    phi = np.arctan2(np.take(v, 1, axis=-1),
+                     np.take(v, 0, axis=-1))
+    return r, theta, phi
+
+def sph2cart(r, theta, phi):
+    """Spherical to cartesian coordinates.
+
+    Input should be an n x 3 array."""
+    v = np.empty((len(r), 3), dtype=float)
+    st = np.sin(theta)
+    v[:,0] = st * np.cos(phi)
+    v[:,1] = st * np.sin(phi)
+    v[:,2] = np.cos(theta)
+    return v * r.reshape(-1, 1)
