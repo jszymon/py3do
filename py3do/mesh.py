@@ -80,6 +80,12 @@ class Mesh:
         return Mesh(np.around(self.vertices, decimals),
                     self.faces, self.normals)
 
+    def extents(self):
+        """Size of the bounding box."""
+        M = self.vertices.max(axis=0)
+        m = self.vertices.min(axis=0)
+        return M - m
+
     def delete_edge(self, i, j):
         """Delete an edge i--j.
 
