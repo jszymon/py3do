@@ -117,3 +117,20 @@ class Mesh:
         new_verts_idx[v_mask] = np.arange(old_n - vs.shape[0])
         self.faces = new_verts_idx[self.faces]
         self.vertices = self.vertices[v_mask]
+
+    def rot90(self, rotations=""):
+        """Rotate model in place clockwise 90 degrees in turn around
+        given axes.
+
+        rotations must be a string of xyzXYZ.  For example "XY"
+        rotates first around the X axis, then around the Y axis.
+
+        """
+        for axis in rotations.upper():
+            ai = "XYZ".find(axis)
+            if ai < 0:
+                raise ValueError("Error: rotations argument must be a string of XYZxyz")
+            a0 = 1 if ai == 0 else 0
+            a1 = 1 if ai == 2 else 2
+            self.vertices[:,(a0,a1)] = self.vertices[:,(a1,a0)]
+            self.vertices[:,a1] = -self.vertices[:,a1]
