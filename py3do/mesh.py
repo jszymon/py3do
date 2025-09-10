@@ -99,3 +99,21 @@ class Mesh:
         self.faces = self.faces[f_mask]
         self.normals = self.normals[f_mask]
         self.faces[self.faces == i] = j
+
+    def delete_vertices(self, vs):
+        """Delete vertices with given numbers.
+
+        Remaining vertices may be renumbered."""
+        vs = np.unique(vs)
+        # remove affected faces
+        f_mask = ~np.isin(self.faces, vs).any(axis=1)
+        self.faces = self.faces[f_mask]
+        self.normals = self.normals[f_mask]
+        # renumber vertices
+        old_n = self.vertices.shape[0]
+        v_mask = np.full(old_n, True)
+        v_mask[vs] = False
+        new_verts_idx = np.full(old_n, -1)
+        new_verts_idx[v_mask] = np.arange(old_n - vs.shape[0])
+        self.faces = new_verts_idx[self.faces]
+        self.vertices = self.vertices[v_mask]

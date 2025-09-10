@@ -3,6 +3,7 @@
 import numpy as np
 
 from .mesh import Mesh
+from .topo import unused_vertices
 
 def slice_horiz_0(m, keep="both"):
     """Slices the model m with a horizontal place z=0.
@@ -100,5 +101,7 @@ def slice_horiz_0(m, keep="both"):
                                   normals_2,
                                   normals_2, # same as normals_2
                                   ])
+    # remove unused vertices
+    m_sliced.delete_vertices(unused_vertices(m_sliced))
     return m_sliced
     
