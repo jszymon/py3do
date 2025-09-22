@@ -23,6 +23,8 @@ def slice_horiz_0(m, keep="both", fill=None):
     assert keep in ['both', 'positive', 'negative']
     if fill is None:
         fill = (keep != "both")
+    if fill and keep == "both":
+        raise ValueError("slice: fill unsupported for keep='both'")
     d = m.vertices[:,2] # distances from the plane
     s = np.sign(d) # side of the plane each vertex is on
     fs = s[m.faces]
@@ -145,16 +147,22 @@ def slice_horiz_0(m, keep="both", fill=None):
 
         # prepare data for mapbox_earcut
         # TODO: holes are treated as separate vertices!  fix this!
+        # TODO: triangulation can result in collinear faces
+        # TODO: triangulation may have problems with collinear points
+        nrm = np.array([0.0,0,1 if keep=="negative" else -1])
         for cycle in cycles:
             print(cycle)
             cycle_verts = m_sliced.vertices[cycle][:,:2]
             cycle_faces = mapbox_earcut.triangulate_float64(cycle_verts,
                                                             [len(cycle)])
             cycle_faces = cycle[cycle_faces] # return to original vertex numbering
-            m_sliced.faces = np.vstack([m_sliced.faces,
-                                        cycle_faces.reshape(-1,3)])
-        # TODO: only update normal of new faces
-        m_sliced.normals, _ = normals_cross(m_sliced)
+            cycle_faces = cycle_faces.reshape(-1,3)
+            # reorient faces at bottom
+            if keep == "positive":
+                cycle_faces = cycle_faces[:,::-1]
+            m_sliced.faces = np.vstack([m_sliced.faces, cycle_faces])
+            m_sliced.normals = np.vstack([m_sliced.normals,
+                                          np.tile(nrm, (cycle_faces.shape[0], 1))])
 
     # remove unused vertices
     m_sliced.delete_vertices(unused_vertices(m_sliced))

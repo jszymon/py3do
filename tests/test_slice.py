@@ -3,6 +3,21 @@ import numpy as np
 from py3do.primitives import cube, uv_sphere
 from py3do.slice import slice_horiz_0
 from py3do import is_isomorphic
+from py3do.topo import EdgeToFaceMap
+
+def _assert_verts_unique(ms):
+    assert np.unique(ms.vertices, axis=0).shape == ms.vertices.shape
+def _assert_faces_on_one_side(ms):
+    vert_sgn = np.sign(ms.vertices[:,2])
+    # assert all faces have all nonnegative and/or nonpositive vertices
+    assert ((vert_sgn[ms.faces] > -0.5).all(axis=1) |
+            (vert_sgn[ms.faces] < 0.5).all(axis=1)).all()
+def _assert_correct_topo(ms, closed=True):
+    efm = EdgeToFaceMap(ms)
+    assert efm.oriented, "Edges not correctly oriented"
+    assert efm.manifold, "Model is not manifold"
+    if closed:
+        assert efm.watertight, "Model is not watertight"
 
 def test_horiz_0_full_positive():
     m=cube()
@@ -24,32 +39,58 @@ def test_horiz_0_cut_cube():
     ms = slice_horiz_0(m, keep="both")
     assert len(ms.vertices) == 8 + 4 + 4 # top/bottom + new
     assert len(ms.faces) == 4 + 4*6 # top/bottom + 4 sides * 6 triangles
-    
+    _assert_verts_unique(ms)
+    _assert_faces_on_one_side(ms)
+    _assert_correct_topo(ms, closed=True)
+def test_horiz_0_cut_cube_positive_open():
+    m = cube()
+    m.vertices[:,2] -= 0.25
+    ms = slice_horiz_0(m, keep="positive", fill=False)
+    assert len(ms.vertices) == 8 + 4 # top/bottom + new on bottom
+    assert len(ms.faces) == 2 + 4*3  # top + 4 sides*3 triangles + bot 6 triangles
+    _assert_verts_unique(ms)
+    _assert_faces_on_one_side(ms)
+    _assert_correct_topo(ms, closed=False)
+def test_horiz_0_cut_cube_positive():
+    m = cube()
+    m.vertices[:,2] -= 0.25
+    ms = slice_horiz_0(m, keep="positive")
+    assert len(ms.vertices) == 8 + 4 # top/bottom + new on bottom
+    assert len(ms.faces) == 2 + 4*3 + 6 # top + 4 sides*3 triangles + bot 6 triangles
+    _assert_verts_unique(ms)
+    _assert_faces_on_one_side(ms)
+    _assert_correct_topo(ms, closed=True)
+def test_horiz_0_cut_cube_negative():
+    m = cube()
+    m.vertices[:,2] -= 0.25
+    ms = slice_horiz_0(m, keep="negative")
+    assert len(ms.vertices) == 8 + 4 # top/bottom + new on bottom
+    assert len(ms.faces) == 2 + 4*3 + 6 # top + 4 sides*3 triangles + bot 6 triangles
+    _assert_verts_unique(ms)
+    _assert_faces_on_one_side(ms)
+    _assert_correct_topo(ms, closed=True)
+def test_horiz_0_cut_cube_pos():
+    m = cube()
+    m.vertices[:,2] -= 0.25
+    ms = slice_horiz_0(m, keep="positive")
+    #assert len(ms.vertices) == 8 + 4 + 4 # top/bottom + new
+    #assert len(ms.faces) == 4 + 4*6 # top/bottom + 4 sides * 6 triangles
+    _assert_verts_unique(ms)
+    _assert_faces_on_one_side(ms)
 
-if __name__ == "__main__":
-    from py3do.vis import view_pyglet
-    m=cube()
-    ms = slice_horiz_0(m)
-    assert is_isomorphic(m, ms) # full model on positive side
-
-    m2 = m.clone()
-    m2.vertices[:,2] += 1
-    m2s = slice_horiz_0(m2, keep="negative")
-    assert len(m2s.vertices) == 0
-    assert len(m2s.faces) == 0
-
-    m3 = m.clone()
-    m3.vertices[:,2] -= 0.25
-    m3s = slice_horiz_0(m3, keep="both")
-    view_pyglet(m3s, marked_vertices = np.arange(len(m3s.vertices)).tolist())
-
-    m4 = uv_sphere(n_u=10)
-    m4.vertices[:,2] -= 0.33
-    m4s = slice_horiz_0(m4, keep="negative")
-    view_pyglet(m4s, marked_vertices = np.arange(len(m4s.vertices)).tolist())
-
-    m5 = uv_sphere(n_u=10)
-    m5.vertices[:,2] *= -1
-    m5.vertices[:,2] -= 0.33
-    m5s = slice_horiz_0(m5, keep="negative")
-    view_pyglet(m5s, marked_vertices = np.arange(len(m5s.vertices)).tolist())
+def test_horiz_0_cut_sphere():
+    for dz in np.linspace(-1,1,20):
+        m = uv_sphere(n_u=10)
+        m.vertices[:,2] -= dz
+        ms = slice_horiz_0(m, keep="positive")
+        _assert_verts_unique(ms)
+        _assert_faces_on_one_side(ms)
+        _assert_correct_topo(ms, closed=True)
+        ms = slice_horiz_0(m, keep="negative")
+        _assert_verts_unique(ms)
+        _assert_faces_on_one_side(ms)
+        _assert_correct_topo(ms, closed=True)
+        ms = slice_horiz_0(m, keep="both")
+        _assert_verts_unique(ms)
+        _assert_faces_on_one_side(ms)
+        _assert_correct_topo(ms, closed=False)
