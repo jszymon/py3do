@@ -25,3 +25,4 @@ from .shell import offset_mesh
 from . import vis
 from . import io
 from . import gcode
+from . import geom_2d
