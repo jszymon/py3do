@@ -51,10 +51,10 @@ def two_segment_fillet(x0, y0, x1, y1, x2, y2, r, n=10):
     # points on arc
     rx = xb - xc
     ry = yb - yc
-    t = np.linspace(0, a, n)
+    t = np.linspace(a, 0, n)
     x = xc + rx * np.cos(t) - ry * np.sin(t)
     y = yc + rx * np.sin(t) + ry * np.cos(t)
     xy = np.column_stack([x, y])
-    xy[0] = (xb, yb)
-    xy[-1] = (xa, ya)
+    xy[-1] = (xb, yb)
+    xy[0] = (xa, ya)
     return xy, (xc, yc), a
