@@ -16,6 +16,9 @@ class Path:
         round_r is the default rounding radius for corners.  If None
         no default rounding is done.
 
+        round_n is the default number of points on roundign arc.  Set
+        to 2 for chamfering.
+
         """
         self.points = [(start_x, start_y)]
         self.angle = start_angle
@@ -83,7 +86,11 @@ class Path:
         return self
 
     def render(self, round_n=None):
-        """Render path: return coordinate list."""
+        """Render path: return coordinate list.
+
+        round_n is the default number of points on roundign arc.  Set
+        to 2 for chamfering.
+        """
         if round_n is None:
             round_n = self.round_n
         if round_n is None:
@@ -98,38 +105,34 @@ class Path:
             return rp
         # apply rounding / chamfering etc.
         rp2 = []
-        if self.closed:
-            # round the closing point
-            mod = self.corner_mods.get(0, ("round", self.round_r))
-            assert mod[0] == "round"
-            r = mod[1]
-            if r is None:
-                rp2.append(rp[0])
-            else:
-                xy, c, a = two_segment_fillet(*rp[-2], *rp[0], *rp[1], r, *round_n_args)
-                rp2.extend(xy)
-                rp[0] = xy[-1]
-                rp[-1] = xy[0]
-        else:
-            rp2.append(rp[0])
-        for i in range(1, len(rp)-1):
+        for i in range(0, len(rp)-1):
             mod = self.corner_mods.get(i, ("round", self.round_r))
             assert mod[0] == "round"
             r = mod[1]
             if r is None:
                 rp2.append(rp[i])
             else:
-                xy, c, a = two_segment_fillet(*rp[i-1], *rp[i], *rp[i+1], r, *round_n_args)
+                if i == 0 and self.closed:
+                    # correct for last point being repeated
+                    prev = -2
+                else:
+                    prev = i-1
+                xy, c, a = two_segment_fillet(*rp[prev], *rp[i], *rp[i+1], r, *round_n_args)
                 # TODO: test a=0
                 rp2.extend(xy)
                 rp[i] = xy[-1]
+                if i == 0 and self.closed:
+                    rp[-1] = xy[0]
+                
         rp2.append(rp[-1])
         return rp2
-    def plot(self):
+    def plot(self, mark_vertices=True):
         import matplotlib.pyplot as plt
         pts = self.render()
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
         plt.plot(xs, ys)
+        if mark_vertices:
+            plt.plot(xs, ys, ".")    
         plt.gca().set_aspect("equal")
         plt.show()
