@@ -7,7 +7,7 @@ from .geom_2d import two_segment_fillet
 class Path:
     """A connected path."""
     def __init__(self, start_x=0, start_y=0, start_angle=0,
-                 closed=True, round_r=None):
+                 closed=True, round_r=None, round_n=None):
         """Create a path.
 
         If closed is True: the path will be automatically closed on
@@ -21,10 +21,12 @@ class Path:
         self.angle = start_angle
         self.closed = closed
         self.round_r = round_r
+        self.round_n = round_n
         self.corner_mods = {} # corner modifications, e.g. rounding
     def copy(self):
         p = Path()
         p.round_r = self.round_r
+        p.round_n = self.round_n
         p.closed = self.closed
         p.points = self.points[:]
         p.angle = self.angle
@@ -80,8 +82,14 @@ class Path:
         self.corner_mods[len(self.points)-1] = ("round", r)
         return self
 
-    def render(self):
+    def render(self, round_n=None):
         """Render path: return coordinate list."""
+        if round_n is None:
+            round_n = self.round_n
+        if round_n is None:
+            round_n_args = []
+        else:
+            round_n_args = [round_n]
         rp = self.points[:]
         if self.closed:
             if rp[-1] != rp[0]:
@@ -98,7 +106,7 @@ class Path:
             if r is None:
                 rp2.append(rp[0])
             else:
-                xy, c, a = two_segment_fillet(*rp[-2], *rp[0], *rp[1], r)
+                xy, c, a = two_segment_fillet(*rp[-2], *rp[0], *rp[1], r, *round_n_args)
                 rp2.extend(xy)
                 rp[0] = xy[-1]
                 rp[-1] = xy[0]
@@ -111,8 +119,7 @@ class Path:
             if r is None:
                 rp2.append(rp[i])
             else:
-                print(r)
-                xy, c, a = two_segment_fillet(*rp[i-1], *rp[i], *rp[i+1], r)
+                xy, c, a = two_segment_fillet(*rp[i-1], *rp[i], *rp[i+1], r, *round_n_args)
                 # TODO: test a=0
                 rp2.extend(xy)
                 rp[i] = xy[-1]
@@ -124,4 +131,5 @@ class Path:
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
         plt.plot(xs, ys)
+        plt.gca().set_aspect("equal")
         plt.show()

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def two_segment_fillet(x0, y0, x1, y1, x2, y2, r, n=10):
+def two_segment_fillet(x0, y0, x1, y1, x2, y2, r, n=16):
     # fillet arc center
     dx1 = x1 - x0
     dy1 = y1 - y0
