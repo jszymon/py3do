@@ -9,7 +9,7 @@ def two_segment_fillet(x0, y0, x1, y1, x2, y2, r, n=16):
     dy2 = y2 - y1
 
     # is clockwise?
-    CW = (dx1 * (y2 - y0) - (x2 - y0) * dy1 <= 0)
+    CW = (dx1 * (y2 - y0) - (x2 - x0) * dy1 <= 0)
     if not CW:
         r = -r
 
