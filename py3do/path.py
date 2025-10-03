@@ -52,7 +52,7 @@ class Path:
         return self
     def dxy(self, dx, dy):
         px, py = self.points[-1]
-        self.points.append((x+dx, y+dy))
+        self.points.append((px+dx, py+dy))
         self.angle = np.arctan2(dy, dx)
         return self
     def dx(self, dx):
@@ -105,11 +105,11 @@ class Path:
             return rp
         # apply rounding / chamfering etc.
         rp2 = []
-        for i in range(0, len(rp)-1):
+        for i in range(len(rp)-1):
             mod = self.corner_mods.get(i, ("round", self.round_r))
             assert mod[0] == "round"
             r = mod[1]
-            if r is None:
+            if ((not self.closed) and i==0) or r is None:
                 rp2.append(rp[i])
             else:
                 if i == 0 and self.closed:
@@ -135,4 +135,3 @@ class Path:
         if mark_vertices:
             plt.plot(xs, ys, ".")    
         plt.gca().set_aspect("equal")
-        plt.show()
