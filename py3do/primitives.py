@@ -83,7 +83,15 @@ def cone_pipe(*args, n=128, close_bottom=False, close_top=False,
         vs.append(new_v)
         v_idx = v_idx + len(new_v)
 
-    args = list(args)
+    new_args = []
+    for a in args:
+        if hasattr(a, "__len__"):
+            if len(a) != 2:
+                raise ValueError("cone_pipe points must have two coordinates")
+            new_args.extend(a)
+        else:
+            new_args.append(a)
+    args = new_args
     if close_bottom and args[0] != 0:
         args = [0, 0] + args
     c = np.hstack([circle(n), np.zeros((n, 1))])
