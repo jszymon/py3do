@@ -26,3 +26,4 @@ from . import vis
 from . import io
 from . import gcode
 from . import geom_2d
+from .path import Path
