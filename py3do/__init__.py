@@ -10,6 +10,7 @@ from .geom import sph2cart
 from .geom import vertex_normals
 from .geom import edge_lengths
 from .geom import volume
+from .geom import COG
 from .topo import repeated_face_vertices
 from .topo import sorted_edges
 from .topo import EdgeToFaceMap

@@ -128,6 +128,16 @@ def volume(m):
     n *= a.reshape(-1,1)
     vs = m.vertices[m.faces[:,0]] # coords of first vertex of every face
     return np.vdot(vs, n) / 3
+def COG(m):
+    """Center of gravity of mesh m.
+
+    """
+    n, a = normals_cross(m)
+    n *= a.reshape(-1,1)
+    vs = m.vertices[m.faces[:,0]] # coords of first vertex of every face
+    V = np.vecdot(vs, n) / 3 # volumes of face tetrahedrons
+    c = m.vertices[m.faces].sum(axis=1) / 4 # centers of tetrahedra based on faces
+    return V @ c
 
 def cart2sph(v):
     """Cartesian to spherical coordinates.
