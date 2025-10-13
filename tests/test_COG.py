@@ -7,8 +7,14 @@ def test_cube_COG():
     m = cube()
     c = COG(m)
     assert np.allclose(c, 0.5)
+    m.vertices += [[10,10,10]]
+    c = COG(m)
+    assert np.allclose(c, 10.5)
 
 def test_uv_sphere_COG():
     m = uv_sphere()
     c = COG(m)
     assert np.allclose(c, 0)
+    m.vertices += [[10,10,10]]
+    c = COG(m)
+    assert np.allclose(c, 10)
