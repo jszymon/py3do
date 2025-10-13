@@ -137,7 +137,7 @@ def COG(m):
     vs = m.vertices[m.faces[:,0]] # coords of first vertex of every face
     V = np.vecdot(vs, n) / 3 # volumes of face tetrahedrons
     c = m.vertices[m.faces].sum(axis=1) / 4 # centers of tetrahedra based on faces
-    return V @ c
+    return (V @ c) / V.sum() # devide by volume
 
 def cart2sph(v):
     """Cartesian to spherical coordinates.
