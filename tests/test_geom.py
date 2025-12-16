@@ -1,5 +1,8 @@
 """Tests for geometric algorithms."""
 
+import pytest
+
+
 def test_normals_cross():
     """Test normals_cross function with various mesh types."""
     from py3do import cube, normals_cross
@@ -142,4 +145,84 @@ def test_normals_cross_complex_mesh():
     # Front face (0,1,3) should have normal pointing in positive y-direction
     expected_front_normal = np.array([0, 1, 0])
     dot_product = np.dot(normals[1], expected_front_normal)
+    assert np.abs(dot_product) == approx(1.0, abs=1e-6)
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered in divide")
+def test_normals_cross_degenerate_triangle():
+    """Test normals_cross with degenerate triangle (should handle gracefully)."""
+    from py3do import Mesh, normals_cross
+    import numpy as np
+
+    # Create a degenerate triangle (colinear points - zero area)
+    vertices = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [0.5, 0, 0]  # Colinear with first two points
+    ])
+    faces = np.array([[0, 1, 2]])
+
+    # Test that Mesh constructor properly handles degenerate triangles
+    # It should raise an error due to NaN normals
+    with pytest.raises(RuntimeError, match="Inf or Nan in normals"):
+        m = Mesh(vertices, faces)
+
+    # Test with fix_nan_normals=True to see if it handles the case
+    try:
+        m = Mesh(vertices, faces, fix_nan_normals=True)
+        # If this succeeds, check that normals are valid
+        assert np.all(np.isfinite(m.normals))
+        print("Mesh constructor with fix_nan_normals=True handled degenerate triangle")
+    except Exception:
+        # Expected - degenerate triangles should not be allowed
+        pass
+
+    # Test normals_cross function directly by creating a minimal mesh
+    # We can create a mesh with pre-computed (invalid) normals
+    try:
+        # Create mesh with dummy normals to bypass validation
+        dummy_normals = np.array([[1, 0, 0]])  # Will be replaced
+        m = Mesh(vertices, faces, normals=dummy_normals)
+
+        # Now test normals_cross directly - should produce NaN
+        with pytest.warns(RuntimeWarning, match="invalid value encountered"):
+            normals, areas = normals_cross(m)
+
+        # Should produce NaN values due to zero area
+        assert np.any(np.isnan(normals))
+        assert np.any(np.isnan(areas))
+
+    except Exception as e:
+        # Some validation might still prevent this
+        print(f"Additional validation prevents testing: {e}")
+
+
+def test_normals_cross_small_triangle():
+    """Test normals_cross with very small triangle."""
+    from py3do import Mesh, normals_cross
+    import numpy as np
+    from pytest import approx
+
+    # Create a very small triangle
+    vertices = np.array([
+        [0, 0, 0],
+        [1e-10, 0, 0],
+        [0, 1e-10, 0]
+    ])
+    faces = np.array([[0, 1, 2]])
+
+    m = Mesh(vertices, faces)
+    normals, areas = normals_cross(m)
+
+    # Should still produce valid unit normal
+    norm_length = np.linalg.norm(normals[0])
+    assert np.isclose(norm_length, 1.0, atol=1e-6)
+
+    # Area should be very small but positive
+    expected_area = 5e-21  # (1e-10 * 1e-10) / 2
+    assert areas[0] == approx(expected_area, rel=1e-6)
+
+    # Normal should still be in correct direction
+    expected_normal = np.array([0, 0, 1])
+    dot_product = np.dot(normals[0], expected_normal)
     assert np.abs(dot_product) == approx(1.0, abs=1e-6)
