@@ -69,7 +69,7 @@ def face_angles(m):
                              np.linalg.norm(d2*l3 - d3*l2, axis=1))
     return np.column_stack([angles0, angles1, angles2])
 
-def vertex_normals(m, method="average", normalize=True):
+def vertex_normals(m, method="angle weighted", normalize=True):
     """Compute vertex normals based on face normals.
 
     Available methods are
