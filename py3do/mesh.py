@@ -134,3 +134,34 @@ class Mesh:
             a1 = 1 if ai == 2 else 2
             self.vertices[:,(a0,a1)] = self.vertices[:,(a1,a0)]
             self.vertices[:,a1] = -self.vertices[:,a1]
+
+    def get_submesh(self, vertex_mask):
+        """Return a submesh formed of vertices selected with
+        vertex_mask.
+
+        The submesh contains only faces for which all vertices are in
+        the submesh.
+
+        Also returned is an index which allows for mapping submesh
+        vertices back to original mesh.  This functionality is useful
+        for applying transformations only to subset of a mesh.
+
+        """
+        # compute maps between vertices
+        n = self.vertices.shape[0]
+        map_submesh_mesh = np.arange(n)[vertex_mask]
+        n_sub = len(map_submesh_mesh)
+        map_mesh_submesh = np.full(n, -1)
+        map_mesh_submesh[map_submesh_mesh] = np.arange(n_sub)
+        submesh_faces = map_mesh_submesh[self.faces]
+        # only include faces for which all vertices are present
+        faces_mask = np.all(submesh_faces > -1, axis=1)
+        submesh_faces = submesh_faces[faces_mask]
+        submesh = Mesh(self.vertices[vertex_mask], submesh_faces,
+                       normals=self.normals[faces_mask])
+        return submesh, map_submesh_mesh
+
+    def set_submesh_vertices(self, submesh, map_submesh_mesh):
+        self.vertices[map_submesh_mesh] = submesh.vertices
+        # recompute normals
+        self.normals, _ = normals_cross(self)
