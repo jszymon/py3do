@@ -18,7 +18,8 @@ def check_offset(m, v_disp):
     true_offsets = np.einsum("...k,...k", v_disp[m.faces], fns)
     return true_offsets
 
-def offset_mesh(m, d, *, method="vertex normals", return_true_offsets=False):
+def offset_mesh(m, d, *, method="vertex normals", return_true_offsets=False,
+                offset_vecs=None):
     """Offset mesh faces by d (possibly approximately)
 
     If exact offset is not possible ensures each face to be
@@ -33,9 +34,15 @@ def offset_mesh(m, d, *, method="vertex normals", return_true_offsets=False):
     offset using vertex normals.  Works well for some shapes, worse
     for others.
 
+    offset_vecs can be used to provide precomputed offset direction
+    vectors, otherwise vertex normals are used.
+
     """
     if method == "vertex normals":
-        vn = vertex_normals(m, "angle weighted", normalize=False)
+        if offset_vecs is None:
+            vn = vertex_normals(m, "angle weighted", normalize=False)
+        else:
+            vn = offset_vecs
         # ensure every face is offset by at least d
         true_offsets = check_offset(m, vn)
         # different offset scaling for each vertex
