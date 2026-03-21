@@ -21,6 +21,7 @@ from .primitives import cone_pipe
 from .primitives import uv_sphere
 from .binary_relations import is_isomorphic
 from .mesh_ops import split_mesh
+from .mesh_ops import chamfer_bottom
 from .slice import slice_horiz_0
 from .shell import offset_mesh
 from . import vis

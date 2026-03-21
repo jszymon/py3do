@@ -3,8 +3,9 @@
 import numpy as np
 
 from .mesh import Mesh
+from .geom import vec_angle, vertex_normals
 from .topo import connected_components
-
+from .slice import slice_horiz_0
 
 def split_mesh(m):
     """Split mesh into connected components.  Returns each component as a
@@ -28,3 +29,42 @@ def split_mesh(m):
                   )
         component_meshes.append(mi)
     return component_meshes
+
+def chamfer_bottom(m, h, d=None, min_angle=15):
+    """Chamfer the bottom of the model.
+
+    Chamfer starts at z=h and its depth at bottom is d.  Chamfer
+    depths for points not at bottom are proportional to their z
+    coordinate, it is 0 for z>=h.  
+
+    If d is none, assume d=h.  Points whose vertex normal's angle with
+    the vector (0,0,-1), i.e. reversed z axis is less than min_angle
+    are not chamfered.
+
+    Most predictable results are for flat bottom surrounded by
+    vertical faces.
+
+    """
+    if d is None:
+        d = h
+    min_angle = np.deg2rad(min_angle)
+    min_z = m.vertices[:,2].min()
+    m.vertices[:,2] -= min_z
+    m.vertices[:,2] -= h
+
+    m = slice_horiz_0(m, keep="both")
+    mask = (m.vertices[:,2] < 0)
+    v_normals = vertex_normals(m, method="angle weighted")[mask]
+    angles_to_z = vec_angle([0,0,1], v_normals)
+    mask2 = (angles_to_z > min_angle)
+    mask[mask] = mask2
+    v_normals = v_normals[mask2]
+    v_normals[:,2] = 0  # shift only x and y corrdinates
+    # shift proportionally to z
+    v_normals *= (-m.vertices[mask][:,2] / h).reshape(-1, 1)
+    v_normals /= np.linalg.norm(v_normals, axis=1).reshape(-1,1)
+    m.vertices[mask] -= v_normals * d
+
+    m.vertices[:,2] += h
+    m.vertices[:,2] += min_z
+    return m
