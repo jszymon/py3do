@@ -4,3 +4,4 @@ from .stl import write_ascii_stl
 from .stl import write_binary_stl
 from .stl import read_stl
 from .obj import read_obj
+from .utils import read_mesh
