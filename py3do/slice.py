@@ -142,7 +142,7 @@ def slice_horiz_0(m, keep="both", fill=None):
                 prev_idx = cur_idx
                 cur_idx = edge_dict[cur_idx]
                 del edge_dict[prev_idx]
-            print(cur_cycle)
+            #print(cur_cycle)
             cycles.append(np.array(cur_cycle))
 
         # prepare data for mapbox_earcut
@@ -151,10 +151,11 @@ def slice_horiz_0(m, keep="both", fill=None):
         # TODO: triangulation may have problems with collinear points
         nrm = np.array([0.0,0,1 if keep=="negative" else -1])
         for cycle in cycles:
-            print(cycle)
+            #print(cycle)
             cycle_verts = m_sliced.vertices[cycle][:,:2]
+            cycle_a = np.array([len(cycle)], dtype=np.int32)
             cycle_faces = mapbox_earcut.triangulate_float64(cycle_verts,
-                                                            [len(cycle)])
+                                                            cycle_a)
             cycle_faces = cycle[cycle_faces] # return to original vertex numbering
             cycle_faces = cycle_faces.reshape(-1,3)
             # reorient faces at bottom
