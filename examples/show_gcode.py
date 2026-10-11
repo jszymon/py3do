@@ -20,15 +20,24 @@ class GCodePlot2D:
     def __init__(self, g):
         self.g = g
         self.pos = np.array(g.pos)
-    def plot_layer(g, l):
-        xyz = self.pos[g.layers[l]:g.layers[l+1]]
+    def plot_layer(self, l):
+        i_start = self.g.layers[l]
+        i_end = self.g.layers[l+1]
+        xyz = self.pos[i_start:i_end]
         xy = xyz[:,[0,1]]
         z = xyz[:,2]
         points = xy.reshape(-1, 1, 2)
-        segments = np.concatenate([xy[:-1], xy[1:]], axis=1)
-        lc = LineCollection(segments, colors=clr)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+        lc = LineCollection(segments, colors=clr[i_start:i_end])
         lc.set_linewidth(2)
-        
+        ax = plt.gca()
+        ax.add_collection(lc)
+        ax.set_xlim(xmin=xy[:,0].min(), xmax=xy[:,0].max())
+        ax.set_ylim(ymin=xy[:,1].min(), ymax=xy[:,1].max())
+        plt.show()
+
+gp = GCodePlot2D(g)
+gp.plot_layer(0)
 # 3d plot
 
 if False:

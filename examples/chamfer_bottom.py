@@ -12,6 +12,7 @@ parser.add_argument('stlfile', help='STL file name')
 parser.add_argument('height', help='Height at which chamfer should start')
 parser.add_argument('-d', '--width', help='Width of chamfer at the bottom (default equal toheight)', default="")
 parser.add_argument('-v', '--view', help='Show the model', action='store_true')
+parser.add_argument('-o', '--outfile', help='Output file', default="")
 #parser.print_help()
 
 args = parser.parse_args()
@@ -25,3 +26,6 @@ m = read_stl(args.stlfile)
 mc = chamfer_bottom(m, h, d=d)
 if args.view:
     view_pyglet(mc)
+
+if args.outfile != "":
+    write_binary_stl(mc, args.outfile)
