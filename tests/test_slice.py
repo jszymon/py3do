@@ -1,8 +1,9 @@
 import numpy as np
+from pytest import approx
 
-from py3do.primitives import cube, uv_sphere
+from py3do.primitives import cube, uv_sphere, cone_pipe
 from py3do.slice import slice_horiz_0
-from py3do import is_isomorphic
+from py3do import is_isomorphic, volume
 from py3do.topo import EdgeToFaceMap
 
 def _assert_verts_unique(ms):
@@ -94,3 +95,16 @@ def test_horiz_0_cut_sphere():
         _assert_verts_unique(ms)
         _assert_faces_on_one_side(ms)
         _assert_correct_topo(ms, closed=False)
+
+def test_horiz_0_cut_pipe():
+    # thick walled pipe: cross section has a hole
+    m = cone_pipe(1, 0, 2, 0, 2, 2, 1, 2, n=16, connect_top_bottom=True)
+    _assert_correct_topo(m, closed=True)
+    m.vertices[:,2] -= 1
+    for keep in ["positive", "negative"]:
+        ms = slice_horiz_0(m, keep=keep)
+        _assert_verts_unique(ms)
+        _assert_faces_on_one_side(ms)
+        _assert_correct_topo(ms, closed=True)
+        # pipe is symmetric about the cut
+        assert volume(ms) == approx(volume(m) / 2)

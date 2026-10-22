@@ -2,11 +2,11 @@
 
 import numpy as np
 
-import mapbox_earcut
 
 from .mesh import Mesh
 from .topo import unused_vertices
 from .geom import normals_cross
+from .triangulate import triangulate
 
 def slice_horiz_0(m, keep="both", fill=None):
     """Slices the model m with a horizontal place z=0.
@@ -126,7 +126,6 @@ def slice_horiz_0(m, keep="both", fill=None):
         new_edges = np.vstack([new_faces_1[:,[2,1]], new_faces_2[:,[2,1]]])
         new_edge_order = np.argsort(new_edges[:,0])
         new_edges = new_edges[new_edge_order]
-        print(new_edges)
         
         edge_dict = {int(i):int(j) for i, j in new_edges}
         assert len(new_edges) == len(edge_dict)
@@ -145,25 +144,16 @@ def slice_horiz_0(m, keep="both", fill=None):
             #print(cur_cycle)
             cycles.append(np.array(cur_cycle))
 
-        # prepare data for mapbox_earcut
-        # TODO: holes are treated as separate vertices!  fix this!
-        # TODO: triangulation can result in collinear faces
-        # TODO: triangulation may have problems with collinear points
+        # triangulate all cycles together so that holes are handled
+        # triangles are CCW when viewed from above
         nrm = np.array([0.0,0,1 if keep=="negative" else -1])
-        for cycle in cycles:
-            #print(cycle)
-            cycle_verts = m_sliced.vertices[cycle][:,:2]
-            cycle_a = np.array([len(cycle)], dtype=np.int32)
-            cycle_faces = mapbox_earcut.triangulate_float64(cycle_verts,
-                                                            cycle_a)
-            cycle_faces = cycle[cycle_faces] # return to original vertex numbering
-            cycle_faces = cycle_faces.reshape(-1,3)
-            # reorient faces at bottom
-            if keep == "positive":
-                cycle_faces = cycle_faces[:,::-1]
-            m_sliced.faces = np.vstack([m_sliced.faces, cycle_faces])
-            m_sliced.normals = np.vstack([m_sliced.normals,
-                                          np.tile(nrm, (cycle_faces.shape[0], 1))])
+        cap_faces = triangulate(m_sliced.vertices[:,:2], cycles)
+        # reorient faces at bottom
+        if keep == "positive":
+            cap_faces = cap_faces[:,::-1]
+        m_sliced.faces = np.vstack([m_sliced.faces, cap_faces])
+        m_sliced.normals = np.vstack([m_sliced.normals,
+                                      np.tile(nrm, (cap_faces.shape[0], 1))])
 
     # remove unused vertices
     m_sliced.delete_vertices(unused_vertices(m_sliced))
