@@ -65,10 +65,17 @@ def cylinder_faces(bottom_idxs, top_idxs):
     return np.array(f, dtype=int)
 
 def cone_pipe(*args, n=128, close_bottom=False, close_top=False,
-                  connect_top_bottom=False):
+              connect_top_bottom=False,
+              profile=None):
     """Make a circular shape based on r_1, h_1, r_2, h_2, .... sequence.
 
-    h_1 is assumed to be 0."""
+    h_1 is assumed to be 0.
+
+    profile: specifies the profile to be extruded: a n x 2 array-like
+        object of points.  If None extrude a circle approximation with n
+        sides.
+
+    """
     def make_cone_segment(r, h):
         nonlocal v_idx, vs, fcs, c
         if r == 0:
@@ -94,7 +101,13 @@ def cone_pipe(*args, n=128, close_bottom=False, close_top=False,
     args = new_args
     if close_bottom and args[0] != 0:
         args = [0, 0] + args
-    c = np.hstack([circle(n), np.zeros((n, 1))])
+    if profile is None:
+        profile = circle(n)
+    else:
+        profile = np.asarray(profile, dtype=float)
+        if len(profile.shape) != 2 or profile.shape[1] != 2:
+            raise RuntimeError("Pipe profile must be an n x 2 array")
+    c = np.hstack([profile, np.zeros((profile.shape[0], 1))])
     vs = []
     v_idx = 0
     fcs = []
