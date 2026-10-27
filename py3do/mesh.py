@@ -186,6 +186,23 @@ class Mesh:
                                       + [self.normals[p] for p in new_parents])
         return n + inv
 
+    def merge(self, other):
+        """Merge another mesh into this one in place.
+
+        Vertices, faces and normals of other are appended.  No
+        union is performed: vertices are not shared and
+        intersections are not resolved.
+
+        Returns the offset added to vertex indices of other.
+
+        """
+        offset = self.vertices.shape[0]
+        self.vertices = np.concatenate([self.vertices, other.vertices])
+        self.faces = np.concatenate([self.faces,
+                                     other.faces + offset]).astype(self.faces.dtype)
+        self.normals = np.concatenate([self.normals, other.normals])
+        return offset
+
     def rot90(self, rotations=""):
         """Rotate model in place clockwise 90 degrees in turn around
         given axes.
