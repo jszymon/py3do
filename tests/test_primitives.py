@@ -2,15 +2,23 @@ import numpy as np
 from pytest import approx
 
 from py3do import circle, cube, cone_pipe
+from py3do import EdgeToFaceMap
 
 def test_cone_pipe():
     """Test cone pipes.  Currently just checks for exceptions."""
     # cylinder empty top/bottom
-    cone_pipe(1, 0, 1, 1, n=10)
+    c1 = cone_pipe(1, 0, 1, 1, n=10)
+    etf = EdgeToFaceMap(c1)
+    assert etf.oriented
     # cylinder with top/bottom
-    cone_pipe(1, 0, 1, 1, n=10, close_top=True, close_bottom=True)
+    c2 = cone_pipe(1, 0, 1, 1, n=10, close_top=True, close_bottom=True)
+    etf = EdgeToFaceMap(c2)
+    assert etf.oriented
+    assert etf.watertight
     # need to flip normals:
-    cone_pipe(1, 0, 1, 1, 2, 1, n=10, connect_top_bottom=True)
+    c3 = cone_pipe(1, 0, 1, 1, 2, 1, n=10, connect_top_bottom=True)
+    etf = EdgeToFaceMap(c3)
+    assert etf.oriented
     
 # test circles
 
