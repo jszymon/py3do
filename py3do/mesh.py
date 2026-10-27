@@ -11,7 +11,7 @@ def _as_3col(x, *, fl=True):
 
     Works for empty lists"""
     if len(x) == 0:
-        return np.empty((0,3), dtype=np.double if fl else np.uint)
+        return np.empty((0,3), dtype=np.double if fl else np.int64)
     if fl:
         x = np.asarray(x, dtype=float)
     else:
@@ -65,7 +65,7 @@ class Mesh:
 
     def clone(self):
         return copy.deepcopy(self)
-    
+
     def round_coords(self, decimals, *, inplace=False, merge=False):
         """Round coordinates of all points.
 
@@ -117,6 +117,67 @@ class Mesh:
         new_verts_idx[v_mask] = np.arange(old_n - vs.shape[0])
         self.faces = new_verts_idx[self.faces]
         self.vertices = self.vertices[v_mask]
+
+    def split_edges(self, edges):
+        """Split given edges in the middle.
+
+        edges is a k x 2 array-like of vertex index pairs.  A new
+        vertex is added at the midpoint of each edge and all faces
+        adjacent to it are split.  Edge orientation and repeated
+        edges are ignored.  A face with several split edges is split
+        into 3 or 4 triangles.  New faces inherit normals of the
+        original faces.  The first part of each split face keeps its
+        original index, the remaining parts are appended at the end.
+
+        Returns an array with the index of the new vertex for each
+        given edge.  Pairs which are not edges of the mesh result in
+        unused vertices.
+
+        """
+        n = self.vertices.shape[0]
+        edges = np.asarray(edges, dtype=np.int64).reshape(-1, 2)
+        if edges.shape[0] == 0:
+            return np.empty(0, dtype=np.int64)
+        if ((edges < 0) | (edges >= n)).any():
+            raise ValueError("split_edges: vertex indices out of bounds")
+        # add midpoints of unique edges
+        keys = edges.min(axis=1) * n + edges.max(axis=1)
+        ukeys, inv = np.unique(keys, return_inverse=True)
+        mids = (self.vertices[ukeys // n] + self.vertices[ukeys % n]) / 2
+        # find midpoints of face edges, edge k is f[k] -- f[k+1]
+        f = self.faces.astype(np.int64)
+        f_next = np.roll(f, -1, axis=1)
+        fkeys = np.minimum(f, f_next) * n + np.maximum(f, f_next)
+        pos = np.minimum(np.searchsorted(ukeys, fkeys), len(ukeys) - 1)
+        found = (ukeys[pos] == fkeys)
+        fmid = n + pos
+        n_split = found.sum(axis=1)
+        # rotate faces such that for one split edge it is edge 0, and
+        # for two split edges the unsplit edge is edge 2
+        r = np.zeros(f.shape[0], dtype=np.int64)
+        r[n_split == 1] = np.argmax(found[n_split == 1], axis=1)
+        r[n_split == 2] = (np.argmin(found[n_split == 2], axis=1) + 1) % 3
+        idx = (np.arange(3)[None,:] + r[:,None]) % 3
+        f = np.take_along_axis(f, idx, axis=1)
+        fmid = np.take_along_axis(fmid, idx, axis=1)
+        a, b, c = f.T.copy()  # copy since f is modified below
+        m0, m1, m2 = fmid.T
+        # replace split faces and append new ones
+        new_faces = [f]
+        new_parents = []
+        def add(mask, *tris):
+            f[mask] = np.column_stack(tris[0])[mask]
+            for t in tris[1:]:
+                new_faces.append(np.column_stack(t)[mask])
+                new_parents.append(np.nonzero(mask)[0])
+        add(n_split == 1, (a, m0, c), (m0, b, c))
+        add(n_split == 2, (a, m0, m1), (m0, b, m1), (a, m1, c))
+        add(n_split == 3, (a, m0, m2), (m0, b, m1), (m2, m1, c), (m0, m1, m2))
+        self.vertices = np.concatenate([self.vertices, mids])
+        self.faces = np.concatenate(new_faces).astype(self.faces.dtype)
+        self.normals = np.concatenate([self.normals]
+                                      + [self.normals[p] for p in new_parents])
+        return n + inv
 
     def rot90(self, rotations=""):
         """Rotate model in place clockwise 90 degrees in turn around
