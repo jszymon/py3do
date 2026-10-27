@@ -140,16 +140,23 @@ class Mesh:
             return np.empty(0, dtype=np.int64)
         if ((edges < 0) | (edges >= n)).any():
             raise ValueError("split_edges: vertex indices out of bounds")
+        # edges as sorted (i,j) records to allow for lexicographic
+        # sorting and searching
+        pair_dt = np.dtype([("i", np.int64), ("j", np.int64)])
+        def as_pairs(e1, e2):
+            p = np.empty(e1.shape, dtype=pair_dt)
+            p["i"] = np.minimum(e1, e2)
+            p["j"] = np.maximum(e1, e2)
+            return p
         # add midpoints of unique edges
-        keys = edges.min(axis=1) * n + edges.max(axis=1)
-        ukeys, inv = np.unique(keys, return_inverse=True)
-        mids = (self.vertices[ukeys // n] + self.vertices[ukeys % n]) / 2
+        upairs, inv = np.unique(as_pairs(edges[:,0], edges[:,1]),
+                                return_inverse=True)
+        mids = (self.vertices[upairs["i"]] + self.vertices[upairs["j"]]) / 2
         # find midpoints of face edges, edge k is f[k] -- f[k+1]
         f = self.faces.astype(np.int64)
-        f_next = np.roll(f, -1, axis=1)
-        fkeys = np.minimum(f, f_next) * n + np.maximum(f, f_next)
-        pos = np.minimum(np.searchsorted(ukeys, fkeys), len(ukeys) - 1)
-        found = (ukeys[pos] == fkeys)
+        fpairs = as_pairs(f, np.roll(f, -1, axis=1))
+        pos = np.minimum(np.searchsorted(upairs, fpairs), len(upairs) - 1)
+        found = (upairs[pos] == fpairs)
         fmid = n + pos
         n_split = found.sum(axis=1)
         # rotate faces such that for one split edge it is edge 0, and
