@@ -134,3 +134,71 @@ def test_check_offset_consistency():
     
     # Should match
     assert np.allclose(true_offsets, expected_offsets, atol=1e-6)
+
+from py3do import Mesh, EdgeToFaceMap, volume
+from py3do.shell import shell, _boundary_edges
+
+
+def _square():
+    return Mesh([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]],
+                [[0, 1, 2], [0, 2, 3]])
+
+
+def _cap():
+    """Upper part of a sphere, an open curved surface."""
+    s = uv_sphere(n_u=16, n_v=8)
+    m, _ = s.get_submesh(s.vertices[:, 2] > 0.3)
+    return m
+
+
+def _check_closed(m):
+    em = EdgeToFaceMap(m)
+    assert em.watertight
+    assert em.oriented
+
+
+@pytest.mark.parametrize("edge", ["flat", "inset", "round"])
+@pytest.mark.parametrize("d", [0.1, -0.1])
+def test_shell_square(edge, d):
+    s = shell(_square(), d, edge=edge, n_round=6)
+    _check_closed(s)
+    v = volume(s)
+    if edge == "round":
+        r = 0.05
+        assert 0.1 < v < 0.1 + 4 * np.pi * r**2 / 2
+        # corners bulge along the bisector by the profile radius
+        assert s.vertices[:, 0].min() == approx(-r / np.sqrt(2))
+    else:
+        assert v == approx(0.1)
+        assert s.vertices[:, 0].min() == approx(0)
+    assert np.sort(s.vertices[:, 2])[[0, -1]] == approx(sorted([0, d]))
+
+
+@pytest.mark.parametrize("edge", ["flat", "inset", "round"])
+@pytest.mark.parametrize("d", [0.1, -0.1])
+def test_shell_cap(edge, d):
+    m = _cap()
+    s = shell(m, d, edge=edge, n_round=4)
+    _check_closed(s)
+    assert volume(s) > 0
+    # displacement of boundary vertices along outward directions
+    # perpendicular to boundary edges in adjacent faces
+    n = m.vertices.shape[0]
+    a, b, f = _boundary_edges(m)
+    eo = np.cross(m.vertices[b] - m.vertices[a], m.normals[f])
+    eo /= np.linalg.norm(eo, axis=1, keepdims=True)
+    protrusion = np.concatenate(
+        [np.einsum("ij,ij->i", s.vertices[v + n] - m.vertices[v], eo)
+         for v in (a, b)])
+    if edge == "flat":
+        # vertex normals at the boundary of a cap tilt inwards
+        assert (protrusion > 1e-3).any() == (d < 0)
+    else:
+        assert (protrusion <= 1e-9).all()
+
+
+def test_shell_bad_args():
+    with pytest.raises(ValueError):
+        shell(_square(), 0.1, edge="bad")
+    with pytest.raises(ValueError):
+        shell(_square(), 0)

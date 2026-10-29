@@ -24,6 +24,7 @@ from .mesh_ops import split_mesh
 from .mesh_ops import chamfer_bottom
 from .slice import slice_horiz_0
 from .shell import offset_mesh
+from .shell import shell
 from . import vis
 from . import io
 from . import gcode
