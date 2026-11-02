@@ -183,20 +183,24 @@ def test_shell_cap(edge, rnd, d):
     s = shell(m, d, edge=edge, round=rnd, n_round=4)
     _check_closed(s)
     assert volume(s) > 0
-    # boundary loop of the cap lies in a horizontal plane
+    # boundary loop of the cap lies in the horizontal plane z=z0, the
+    # surface is above it
     n = m.vertices.shape[0]
-    bv = np.unique(_boundary_edges(m)[:2])
-    z0 = m.vertices[bv, 2]
-    z1 = s.vertices[bv + n, 2]
+    z0 = m.vertices[:, 2].min()
+    z = s.vertices[:, 2]
     if edge == "flat":
-        assert not z1 == approx(z0)
+        # offset rim leaves the plane
+        assert not z[n:2 * n] == approx(z0)
+    elif not rnd:
+        # nothing protrudes beyond the plane, rim in the plane is at
+        # least |d| wide
+        assert z.min() >= z0 - 1e-9
+        rim = s.vertices[np.abs(z - z0) < 1e-9]
+        r = np.linalg.norm(rim[:, :2], axis=1)
+        assert r.max() - r.min() >= abs(d) * 0.99
     else:
-        # offset rim in the plane of the boundary loop, still at
-        # distance about |d| from the original rim
-        assert z1 == approx(z0)
-        dist = np.linalg.norm(s.vertices[bv + n] - m.vertices[bv], axis=1)
-        assert dist == approx(dist[0])
-        assert dist[0] >= abs(d)
+        # round edge bulges beyond the plane by about half the width
+        assert z0 - abs(d) < z.min() < z0 - abs(d) / 4
 
 
 def test_shell_bad_args():

@@ -487,3 +487,50 @@ def test_cart2sph_sph2cart_roundtrip():
     
     # Should be very close to original
     assert np.allclose(v_reconstructed, v_original, atol=1e-6)
+
+
+def _sphere_cap():
+    """Upper part of a unit sphere, an open curved surface."""
+    s = uv_sphere(n_u=32, n_v=16)
+    m, _ = s.get_submesh(s.vertices[:, 2] > 0.3)
+    return m
+
+
+def test_vertex_normals_fix_boundary_closed():
+    """Closed meshes have no boundary, normals are unchanged."""
+    m = uv_sphere(n_u=16, n_v=8)
+    assert np.array_equal(vertex_normals(m),
+                          vertex_normals(m, fix_boundary=True))
+
+
+def test_vertex_normals_fix_boundary_flat():
+    """Flat meshes keep their normals."""
+    m = Mesh([[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 1, 0], [1, 1, 0],
+              [2, 1, 0], [0, 2, 0], [1, 2, 0], [2, 2, 0]],
+             [[0, 1, 4], [0, 4, 3], [1, 2, 5], [1, 5, 4],
+              [3, 4, 7], [3, 7, 6], [4, 5, 8], [4, 8, 7]])
+    vn = vertex_normals(m, fix_boundary=True)
+    assert vn == approx(np.tile([0, 0, 1.0], (9, 1)))
+
+
+def test_vertex_normals_fix_boundary_sphere_cap():
+    """Boundary normals of a sphere cap get closer to the exact ones."""
+    m = _sphere_cap()
+    exact = m.vertices / np.linalg.norm(m.vertices, axis=1, keepdims=True)
+    bv = m.vertices[:, 2] == m.vertices[:, 2].min()
+    err = vec_angle(vertex_normals(m)[bv], exact[bv])
+    err_fixed = vec_angle(vertex_normals(m, fix_boundary=True)[bv],
+                          exact[bv])
+    assert err_fixed.max() < err.max() / 2
+    # interior normals unchanged
+    assert np.array_equal(vertex_normals(m)[~bv],
+                          vertex_normals(m, fix_boundary=True)[~bv])
+
+
+def test_vertex_normals_fix_boundary_unnormalized():
+    """Lengths of unnormalized normals are preserved."""
+    m = _sphere_cap()
+    vn = vertex_normals(m, normalize=False)
+    vn_fixed = vertex_normals(m, normalize=False, fix_boundary=True)
+    assert np.linalg.norm(vn_fixed, axis=1) == \
+        approx(np.linalg.norm(vn, axis=1))

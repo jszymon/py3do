@@ -2,9 +2,8 @@
 edge types, flat and inset, with and without rounding.  The original
 cut sphere is shown first, together with its offset.
 
-Thickness is added on the inside.  Outside, the inset rims would have
-to be trimmed back, which shell only does for boundary vertices, so
-the surface would fold over.  The shells are placed side by side and
+Thickness is added on the outside, so inset edges clip the offset
+surface at the cutting planes.  The shells are placed side by side and
 shown.  Optionally they are written to an STL file given as the first
 argument."""
 
@@ -16,6 +15,7 @@ from py3do.vis import view_pyglet
 
 r = 10  # sphere radius
 c = 8   # distance of cutting planes from the center, > r/sqrt(2)
+d = 1   # thickness, for inset edges c*sqrt(2) > r+d must hold
 
 m = uv_sphere(n_u=96)
 m.vertices *= r
@@ -31,11 +31,11 @@ m = Mesh(m.vertices, m.faces)  # recompute normals after rotations
 # the original cut sphere together with its offset first, then the
 # shells
 out = m.clone()
-out.merge(offset_mesh(m, -1.5))
+out.merge(offset_mesh(m, d))
 out.vertices[:,2] -= out.vertices[:,2].min()  # rest on z=0
 variants = [(e, rnd) for rnd in (False, True) for e in ("flat", "inset")]
 for i, (edge, rnd) in enumerate(variants, 1):
-    s = shell(m, -1.5, edge=edge, round=rnd, n_round=8)
+    s = shell(m, d, edge=edge, round=rnd, n_round=8)
     s.vertices[:,2] -= s.vertices[:,2].min()  # rest on z=0
     s.vertices[:,0] += 30 * i
     out.merge(s)

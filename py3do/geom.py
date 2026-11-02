@@ -69,13 +69,65 @@ def face_angles(m):
                              np.linalg.norm(d2*l3 - d3*l2, axis=1))
     return np.column_stack([angles0, angles1, angles2])
 
-def vertex_normals(m, method="angle weighted", normalize=True):
+def _fix_boundary_normals(m, v_normals):
+    """Recompute normals of boundary vertices of m in place.
+
+    Normals of boundary vertices computed from adjacent faces are
+    biased towards the interior, since all faces lie on one side.
+    Instead, normals of interior vertices w within two edges of a
+    boundary vertex v are reflected across the plane perpendicular to
+    v--w (exact if v and w lie on a circular arc) and averaged with
+    weights |v-w|^2 to reduce the influence of short edges.  Lengths
+    of v_normals are preserved.  Boundary vertices with no interior
+    vertices nearby are left unchanged.
+
+    """
+    n = m.vertices.shape[0]
+    edges, counts = np.unique(sorted_edges(m, unique=False), axis=0,
+                              return_counts=True)
+    is_b = np.zeros(n, dtype=bool)
+    is_b[edges[counts == 1]] = True
+    if not is_b.any():
+        return v_normals
+    # directed edges sorted by start vertex
+    e = np.concatenate([edges, edges[:, ::-1]])
+    e = e[np.argsort(e[:, 0], kind="stable")]
+    starts = np.searchsorted(e[:, 0], np.arange(n + 1))
+    # pairs (boundary vertex, vertex within two edges)
+    p1 = e[is_b[e[:, 0]]]
+    cnt = starts[p1[:, 1] + 1] - starts[p1[:, 1]]
+    rows = np.repeat(starts[p1[:, 1]], cnt) + (np.arange(cnt.sum())
+                         - np.repeat(np.cumsum(cnt) - cnt, cnt))
+    p2 = np.column_stack([np.repeat(p1[:, 0], cnt), e[rows, 1]])
+    pairs = np.unique(np.concatenate([p1, p2]), axis=0)
+    pairs = pairs[~is_b[pairs[:, 1]]]
+    v, w = pairs[:, 0], pairs[:, 1]
+    u = m.vertices[w] - m.vertices[v]
+    l = np.linalg.norm(u, axis=1, keepdims=True)
+    u /= l
+    nw = v_normals[w] / np.linalg.norm(v_normals[w], axis=1, keepdims=True)
+    r = nw - 2 * np.einsum("ij,ij->i", nw, u).reshape(-1, 1) * u
+    acc = np.zeros_like(v_normals)
+    np.add.at(acc, v, r * l**2)
+    fix = np.unique(v)
+    acc = acc[fix] / np.linalg.norm(acc[fix], axis=1, keepdims=True)
+    v_normals[fix] = acc * np.linalg.norm(v_normals[fix], axis=1,
+                                          keepdims=True)
+    return v_normals
+
+def vertex_normals(m, method="angle weighted", normalize=True,
+                   fix_boundary=False):
     """Compute vertex normals based on face normals.
 
     Available methods are
     * 'average': average of normals of all adjacent faces
     * 'area weighted': as above but weighted by face area
     * 'angle weighted': as above but weighted by face angle adjacent to vertex
+
+    If fix_boundary is True, normals of boundary vertices of open
+    meshes are estimated from normals of nearby interior vertices,
+    see _fix_boundary_normals.  This gives more accurate normals at
+    boundaries of curved surfaces.
     """
     if method in ["average", "area weighted", "angle weighted"]:
         v_normals = np.zeros_like(m.vertices)
@@ -109,6 +161,8 @@ def vertex_normals(m, method="angle weighted", normalize=True):
             v_normals /= denoms.reshape(-1,1)
     else:
         raise NotImplemented("vertex normals method '" + method + "' not implemented")
+    if fix_boundary:
+        _fix_boundary_normals(m, v_normals)
     return v_normals
 
 def edge_lengths(m):
