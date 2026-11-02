@@ -4,6 +4,7 @@ import numpy as np
 
 from .mesh import Mesh
 from .geom import vertex_normals
+from .utils import UnionFind
 
 def check_offset(m, v_disp):
     """Computes accuracy of offset based on diplacing estisting mesh
@@ -77,7 +78,32 @@ def _boundary_edges(m):
     bmask = (cnt[inv.reshape(-1)] == 1)
     return a[bmask], b[bmask], fi[bmask]
 
-def shell(m, d, *, edge="flat", n_round=8, offset_vecs=None):
+def _slide_to_loop_planes(v0, v1, disp, ba, bb, bv, ob):
+    """Move offset boundary vertices v1[bv] in place along the offset
+    surface into best fitting planes of boundary loops of v0.
+
+    ba, bb are boundary edges, ob outward directions at bv."""
+    uf = UnionFind(v0.shape[0])
+    for a, b in zip(ba, bb):
+        uf.union(a, b)
+    loops = uf.sets()[bv]
+    # sliding direction: outward direction made perpendicular to the
+    # offset displacement
+    dn = disp[bv] / np.linalg.norm(disp[bv], axis=1, keepdims=True)
+    t = ob - np.einsum("ij,ij->i", ob, dn).reshape(-1, 1) * dn
+    t /= np.linalg.norm(t, axis=1, keepdims=True)
+    for l in np.unique(loops):
+        sel = (loops == l)
+        idx = bv[sel]
+        c = v0[idx].mean(axis=0)
+        p = np.linalg.svd(v0[idx] - c)[2][-1]  # plane normal
+        tp = t[sel] @ p
+        ok = np.abs(tp) > 1e-6
+        s = -((v1[idx] - c) @ p) / np.where(ok, tp, 1)
+        v1[idx] += np.where(ok, s, 0).reshape(-1, 1) * t[sel]
+
+def shell(m, d, *, edge="flat", round=False, n_round=8,
+          offset_vecs=None):
     """Add thickness d to a flat (open surface) mesh m.
 
     The mesh is offset by d using offset_mesh (in the direction of
@@ -90,24 +116,27 @@ def shell(m, d, *, edge="flat", n_round=8, offset_vecs=None):
     "flat": each boundary edge is connected to its offset copy by two
     triangles.
 
-    "inset": as "flat", but boundary vertices of the offset surface
-    are moved back so that they do not protrude outside the original
-    edge, i.e. their displacement has no component pointing outward
-    from the surface along its boundary.  Identical to "flat" for
-    planar meshes.
+    "inset": as "flat", but each boundary vertex of the offset surface
+    slides along the offset surface (perpendicular to the boundary)
+    until it reaches the plane of its boundary loop, so the side
+    walls lie in that plane.  E.g. a dome cut at z=c gets a
+    horizontal rim at z=c.  For non planar loops the best fitting
+    plane is used.  Vertices whose offset surface is parallel to the
+    plane are not moved, so this is identical to "flat" for planar
+    meshes.
 
-    "round": as "inset", but the edge is a half round of diameter
-    equal to the length of the (inset) side wall, made of n_round
-    segments.  The edge bulges outward from the original boundary.
+    If round is True, the side wall (of either edge type) is replaced
+    by a half round of diameter equal to the wall's length, made of
+    n_round segments.  It bulges outward from the original boundary.
 
     offset_vecs is passed on to offset_mesh.
 
     """
-    if edge not in ("flat", "inset", "round"):
+    if edge not in ("flat", "inset"):
         raise ValueError("shell: unknown edge type " + repr(edge))
     if d == 0:
         raise ValueError("shell: thickness must be nonzero")
-    if edge == "round" and n_round < 1:
+    if round and n_round < 1:
         raise ValueError("shell: n_round must be at least 1")
     n = m.vertices.shape[0]
     v0 = m.vertices
@@ -122,15 +151,14 @@ def shell(m, d, *, edge="flat", n_round=8, offset_vecs=None):
     np.add.at(outward, bb, eo)
     ob = outward[bv]
     ob /= np.linalg.norm(ob, axis=1, keepdims=True)
-    if edge != "flat":
-        p = np.einsum("ij,ij->i", disp[bv], ob)
-        disp[bv] -= np.maximum(p, 0).reshape(-1, 1) * ob
     v1 = v0 + disp
+    if edge == "inset":
+        _slide_to_loop_planes(v0, v1, disp, ba, bb, bv, ob)
     vertices = [v0, v1]
     # rings[k][i] is the index of k-th edge profile vertex of
     # boundary vertex i
     rings = [np.arange(n)]
-    if edge == "round":
+    if round:
         c = (v0[bv] + v1[bv]) / 2
         u = v0[bv] - c
         r = np.linalg.norm(u, axis=1, keepdims=True)

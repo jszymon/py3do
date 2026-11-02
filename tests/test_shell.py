@@ -157,13 +157,14 @@ def _check_closed(m):
     assert em.oriented
 
 
-@pytest.mark.parametrize("edge", ["flat", "inset", "round"])
+@pytest.mark.parametrize("edge", ["flat", "inset"])
+@pytest.mark.parametrize("rnd", [False, True])
 @pytest.mark.parametrize("d", [0.1, -0.1])
-def test_shell_square(edge, d):
-    s = shell(_square(), d, edge=edge, n_round=6)
+def test_shell_square(edge, rnd, d):
+    s = shell(_square(), d, edge=edge, round=rnd, n_round=6)
     _check_closed(s)
     v = volume(s)
-    if edge == "round":
+    if rnd:
         r = 0.05
         assert 0.1 < v < 0.1 + 4 * np.pi * r**2 / 2
         # corners bulge along the bisector by the profile radius
@@ -174,31 +175,36 @@ def test_shell_square(edge, d):
     assert np.sort(s.vertices[:, 2])[[0, -1]] == approx(sorted([0, d]))
 
 
-@pytest.mark.parametrize("edge", ["flat", "inset", "round"])
+@pytest.mark.parametrize("edge", ["flat", "inset"])
+@pytest.mark.parametrize("rnd", [False, True])
 @pytest.mark.parametrize("d", [0.1, -0.1])
-def test_shell_cap(edge, d):
+def test_shell_cap(edge, rnd, d):
     m = _cap()
-    s = shell(m, d, edge=edge, n_round=4)
+    s = shell(m, d, edge=edge, round=rnd, n_round=4)
     _check_closed(s)
     assert volume(s) > 0
-    # displacement of boundary vertices along outward directions
-    # perpendicular to boundary edges in adjacent faces
+    # boundary loop of the cap lies in a horizontal plane
     n = m.vertices.shape[0]
-    a, b, f = _boundary_edges(m)
-    eo = np.cross(m.vertices[b] - m.vertices[a], m.normals[f])
-    eo /= np.linalg.norm(eo, axis=1, keepdims=True)
-    protrusion = np.concatenate(
-        [np.einsum("ij,ij->i", s.vertices[v + n] - m.vertices[v], eo)
-         for v in (a, b)])
+    bv = np.unique(_boundary_edges(m)[:2])
+    z0 = m.vertices[bv, 2]
+    z1 = s.vertices[bv + n, 2]
     if edge == "flat":
-        # vertex normals at the boundary of a cap tilt inwards
-        assert (protrusion > 1e-3).any() == (d < 0)
+        assert not z1 == approx(z0)
     else:
-        assert (protrusion <= 1e-9).all()
+        # offset rim in the plane of the boundary loop, still at
+        # distance about |d| from the original rim
+        assert z1 == approx(z0)
+        dist = np.linalg.norm(s.vertices[bv + n] - m.vertices[bv], axis=1)
+        assert dist == approx(dist[0])
+        assert dist[0] >= abs(d)
 
 
 def test_shell_bad_args():
     with pytest.raises(ValueError):
         shell(_square(), 0.1, edge="bad")
+    with pytest.raises(ValueError):
+        shell(_square(), 0.1, edge="round")
+    with pytest.raises(ValueError):
+        shell(_square(), 0.1, round=True, n_round=0)
     with pytest.raises(ValueError):
         shell(_square(), 0)
